@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import GalleryPage from './pages/GalleryPage';
+import GalleriesPage from './pages/GalleriesPage';
 import UploadPage from './pages/UploadPage';
 import MediaDetailPage from './pages/MediaDetailPage';
 import ProfilePage from './pages/ProfilePage';
@@ -51,6 +52,7 @@ function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="gallery" element={<GalleryPage />} />
+                <Route path="galleries" element={<GalleriesPage />} />
                 <Route path="upload" element={<UploadPage />} />
                 <Route path="media/:id" element={<MediaDetailPage />} />
                 <Route path="profile" element={<ProfilePage />} />

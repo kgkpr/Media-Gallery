@@ -13,6 +13,7 @@ const authRoutes = require('./routes/authRoutes');
 const mediaRoutes = require('./routes/mediaRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const userRoutes = require('./routes/userRoutes');
+const galleryRoutes = require('./routes/galleryRoutes');
 
 // Security middleware
 app.use(helmet({
@@ -64,6 +65,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/galleries', galleryRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

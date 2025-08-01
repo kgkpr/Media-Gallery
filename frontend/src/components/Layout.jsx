@@ -12,7 +12,8 @@ import {
   FiMenu,
   FiX,
   FiLogOut,
-  FiSettings
+  FiSettings,
+  FiFolder
 } from 'react-icons/fi';
 
 const Layout = () => {
@@ -28,7 +29,8 @@ const Layout = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: FiHome },
-    { name: 'Gallery', href: '/gallery', icon: FiImage },
+    { name: 'My images', href: '/gallery', icon: FiImage },
+    { name: 'Galleries', href: '/galleries', icon: FiFolder },
     { name: 'Upload', href: '/upload', icon: FiUpload },
     { name: 'Contact', href: '/contact', icon: FiMessageSquare },
     { name: 'Profile', href: '/profile', icon: FiUser },
