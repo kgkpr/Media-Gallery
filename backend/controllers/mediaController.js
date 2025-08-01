@@ -147,14 +147,21 @@ const getMediaById = async (req, res) => {
       return res.status(404).json({ message: 'Media not found' });
     }
 
-    // Check access permissions
-    if (!media.isPublic && media.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied' });
+    // Check access permissions - only if user is authenticated
+    if (req.user) {
+      if (!media.isPublic && media.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      
+      // Increment views only for authenticated users
+      media.views += 1;
+      await media.save();
+    } else {
+      // For unauthenticated users, only show public media
+      if (!media.isPublic) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
     }
-
-    // Increment views
-    media.views += 1;
-    await media.save();
 
     res.json({ media });
   } catch (error) {

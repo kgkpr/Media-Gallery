@@ -17,11 +17,16 @@ const MediaDetailPage = () => {
   const { data: media, isLoading, error } = useQuery(
     ['media', id],
     async () => {
-      const response = await axios.get(`http://localhost:5000/api/media/${id}`);
-      return response.data;
+      console.log('Fetching media with ID:', id);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.get(`http://localhost:5000/api/media/${id}`, config);
+      console.log('Media response:', response.data);
+      return response.data.media || response.data;
     },
     {
       onError: (error) => {
+        console.error('Error fetching media:', error);
         toast.error('Failed to load media details');
         navigate('/gallery');
       }
@@ -94,7 +99,7 @@ const MediaDetailPage = () => {
       setEditData({
         title: media.title || '',
         description: media.description || '',
-        tags: media.tags || '',
+        tags: Array.isArray(media.tags) ? media.tags.join(', ') : (media.tags || ''),
         isPublic: media.isPublic || false
       });
     }
@@ -107,7 +112,11 @@ const MediaDetailPage = () => {
   };
 
   const handleUpdate = () => {
-    updateMutation.mutate(editData);
+    const updateData = {
+      ...editData,
+      tags: editData.tags ? editData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+    };
+    updateMutation.mutate(updateData);
   };
 
   const formatFileSize = (bytes) => {
@@ -288,9 +297,9 @@ const MediaDetailPage = () => {
                   <div>
                     <span className="text-sm font-medium text-gray-500">Tags</span>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {media.tags ? media.tags.split(',').map((tag, index) => (
+                      {media.tags && media.tags.length > 0 ? media.tags.map((tag, index) => (
                         <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                          {tag.trim()}
+                          {tag}
                         </span>
                       )) : (
                         <span className="text-gray-400 text-sm">No tags</span>
@@ -315,7 +324,7 @@ const MediaDetailPage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">File size:</span>
-                  <span className="text-gray-900">{formatFileSize(media.size)}</span>
+                  <span className="text-gray-900">{formatFileSize(media.fileSize)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Type:</span>
