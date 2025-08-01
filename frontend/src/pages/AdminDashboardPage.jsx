@@ -157,21 +157,7 @@ const AdminDashboardPage = () => {
             </div>
           </Link>
 
-          <div className="flex items-center p-4 border border-gray-200 rounded-lg opacity-50">
-            <FiBarChart2 className="h-6 w-6 text-primary-600 mr-3" />
-            <div>
-              <p className="font-medium text-gray-500">Analytics</p>
-              <p className="text-sm text-gray-400">Coming soon</p>
-            </div>
-          </div>
 
-          <div className="flex items-center p-4 border border-gray-200 rounded-lg opacity-50">
-            <FiSettings className="h-6 w-6 text-gray-400 mr-3" />
-            <div>
-              <p className="font-medium text-gray-500">System Settings</p>
-              <p className="text-sm text-gray-400">Coming soon</p>
-            </div>
-          </div>
         </div>
       </div>
 
