@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import axios from 'axios';
-import { FiUpload, FiImage, FiX, FiTag, FiEye, FiFolder } from 'react-icons/fi';
+import { FiUpload, FiX, FiFolder } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const UploadPage = () => {
@@ -10,14 +10,14 @@ const UploadPage = () => {
   const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch galleries for dropdown
+  // Fetch only user's own galleries for dropdown (not shared galleries)
   const { data: galleriesData } = useQuery(
-    ['galleries'],
+    ['galleries', 'owned'],
     async () => {
       const token = localStorage.getItem('token');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       
-      const response = await axios.get('http://localhost:5000/api/galleries', config);
+      const response = await axios.get('http://localhost:5000/api/galleries?ownedOnly=true', config);
       return response.data;
     }
   );
@@ -30,7 +30,7 @@ const UploadPage = () => {
       formData.append('title', fileData.title);
       formData.append('description', fileData.description);
       formData.append('tags', fileData.tags);
-      formData.append('isPublic', fileData.isPublic);
+
       if (fileData.galleryId) {
         formData.append('galleryId', fileData.galleryId);
       }
@@ -66,7 +66,7 @@ const UploadPage = () => {
       title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
       description: '',
       tags: '',
-      isPublic: false,
+
       galleryId: '', // Add gallery selection
       preview: URL.createObjectURL(file)
     }));
@@ -262,22 +262,7 @@ const UploadPage = () => {
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Visibility
-                        </label>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={fileData.isPublic}
-                            onChange={(e) => updateFileData(fileData.id, 'isPublic', e.target.checked)}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">
-                            Make this image public
-                          </span>
-                        </div>
-                      </div>
+
 
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">

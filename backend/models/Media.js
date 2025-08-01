@@ -39,10 +39,7 @@ const mediaSchema = new mongoose.Schema({
     width: Number,
     height: Number
   },
-  isPublic: {
-    type: Boolean,
-    default: false
-  },
+
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

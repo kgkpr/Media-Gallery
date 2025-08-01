@@ -107,7 +107,7 @@ const MediaDetailPage = () => {
         title: media.title || '',
         description: media.description || '',
         tags: Array.isArray(media.tags) ? media.tags.join(', ') : (media.tags || ''),
-        isPublic: media.isPublic || false
+
       });
     }
   }, [media, isEditing]);
@@ -266,15 +266,7 @@ const MediaDetailPage = () => {
                       placeholder="Enter tags separated by commas"
                     />
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editData.isPublic}
-                      onChange={(e) => setEditData({...editData, isPublic: e.target.checked})}
-                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Make public</span>
-                  </div>
+
                   <div className="flex space-x-2">
                     <button
                       onClick={handleUpdate}
@@ -313,10 +305,7 @@ const MediaDetailPage = () => {
                       )}
                     </div>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Visibility</span>
-                    <p className="text-gray-900">{media.isPublic ? 'Public' : 'Private'}</p>
-                  </div>
+
                 </div>
               )}
             </div>

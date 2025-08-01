@@ -22,7 +22,6 @@ const createGallery = async (req, res) => {
     const gallery = new Gallery({
       name: name.trim(),
       description: description || '',
-      isPublic: isPublic || false,
       user: req.user._id
     });
 
@@ -34,7 +33,6 @@ const createGallery = async (req, res) => {
         id: gallery._id,
         name: gallery.name,
         description: gallery.description,
-        isPublic: gallery.isPublic,
         createdAt: gallery.createdAt
       }
     });
@@ -47,7 +45,7 @@ const createGallery = async (req, res) => {
 // Get all galleries for the user
 const getGalleries = async (req, res) => {
   try {
-    const { search, isPublic } = req.query;
+    const { search, isPublic, ownedOnly } = req.query;
     
     // Get user's own galleries
     const ownQuery = { user: req.user._id };
@@ -61,6 +59,13 @@ const getGalleries = async (req, res) => {
     const ownGalleries = await Gallery.find(ownQuery)
       .sort({ createdAt: -1 })
       .exec();
+
+    // If ownedOnly is requested, return only user's own galleries
+    if (ownedOnly === 'true') {
+      return res.json({ 
+        galleries: ownGalleries
+      });
+    }
 
     // Get shared galleries
     const SharedGallery = require('../models/SharedGallery');
@@ -96,7 +101,7 @@ const getGalleries = async (req, res) => {
 // Get single gallery
 const getGalleryById = async (req, res) => {
   try {
-    const gallery = await Gallery.findById(req.params.id)
+    let gallery = await Gallery.findById(req.params.id)
       .populate('user', 'name email');
 
     if (!gallery) {
@@ -181,14 +186,45 @@ const deleteGallery = async (req, res) => {
       return res.status(404).json({ message: 'Gallery not found' });
     }
 
-    // Check ownership
-    if (gallery.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    const isOwner = gallery.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    
+    // Check if user has access to this gallery (owner, admin, or shared user)
+    const SharedGallery = require('../models/SharedGallery');
+    const sharedGallery = await SharedGallery.findOne({
+      gallery: req.params.id,
+      sharedWith: req.user._id
+    });
+    
+    const isSharedUser = sharedGallery !== null;
+    
+    if (!isOwner && !isAdmin && !isSharedUser) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    await gallery.deleteOne();
-
-    res.json({ message: 'Gallery deleted successfully' });
+    if (isOwner || isAdmin) {
+      // Owner or admin deletion: Delete the entire gallery and all sharing relationships
+      
+      // First, delete all media associated with this gallery
+      const Media = require('../models/Media');
+      await Media.deleteMany({ gallery: req.params.id });
+      
+      // Delete all sharing relationships for this gallery
+      await SharedGallery.deleteMany({ gallery: req.params.id });
+      
+      // Finally, delete the gallery itself
+      await gallery.deleteOne();
+      
+      res.json({ message: 'Gallery deleted successfully' });
+    } else if (isSharedUser) {
+      // Shared user deletion: Only remove the sharing relationship for this user
+      await SharedGallery.deleteOne({
+        gallery: req.params.id,
+        sharedWith: req.user._id
+      });
+      
+      res.json({ message: 'Gallery removed from your shared galleries' });
+    }
   } catch (error) {
     console.error('Delete gallery error:', error);
     res.status(500).json({ message: 'Server error' });

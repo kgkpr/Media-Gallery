@@ -80,7 +80,7 @@ const GalleriesPage = () => {
     if (newGalleryName.trim()) {
       createGalleryMutation.mutate({
         name: newGalleryName.trim(),
-        isPublic: false
+
       });
     }
   };
@@ -160,13 +160,7 @@ const GalleriesPage = () => {
                          Shared
                        </span>
                      )}
-                     <span className={`px-2 py-1 rounded-full text-xs ${
-                       gallery.isPublic 
-                         ? 'bg-green-100 text-green-800' 
-                         : 'bg-gray-100 text-gray-800'
-                     }`}>
-                       {gallery.isPublic ? 'Public' : 'Private'}
-                     </span>
+
                    </div>
                  </div>
 
@@ -179,11 +173,19 @@ const GalleriesPage = () => {
                      <FiEye className="mr-2 h-4 w-4" />
                      View Gallery
                    </Link>
-                   {!gallery.isShared && (
+                   {!gallery.isShared ? (
                      <button
                        onClick={() => handleDeleteGallery(gallery._id, gallery.name)}
                        className="btn-danger text-sm py-2 px-3 flex items-center"
                        title="Delete gallery"
+                     >
+                       <FiTrash2 className="h-4 w-4" />
+                     </button>
+                   ) : (
+                     <button
+                       onClick={() => handleDeleteGallery(gallery._id, gallery.name)}
+                       className="btn-secondary text-sm py-2 px-3 flex items-center border border-gray-300 hover:bg-gray-50"
+                       title="Remove from shared galleries"
                      >
                        <FiTrash2 className="h-4 w-4" />
                      </button>

@@ -22,7 +22,17 @@ const uploadMedia = async (req, res) => {
         return res.status(400).json({ message: errors.join(', ') });
       }
 
-      const { title, description, tags, isPublic, galleryId } = req.body;
+      const { title, description, tags, galleryId } = req.body;
+
+      // Check if user can upload to this gallery (only owners can upload)
+      if (galleryId) {
+        const Gallery = require('../models/Gallery');
+        const gallery = await Gallery.findOne({ _id: galleryId, user: req.user._id });
+        if (!gallery) {
+          cleanupUploads(req.file.path);
+          return res.status(403).json({ message: 'You can only upload to your own galleries' });
+        }
+      }
 
       // Get image dimensions
       let dimensions = {};
@@ -43,7 +53,7 @@ const uploadMedia = async (req, res) => {
         fileSize: req.file.size,
         mimeType: req.file.mimetype,
         dimensions,
-        isPublic: isPublic === 'true',
+
         user: req.user._id,
         gallery: galleryId || null
       });
@@ -81,7 +91,6 @@ const getMedia = async (req, res) => {
       search, 
       tags, 
       userId,
-      isPublic,
       galleryId,
       sortBy = 'createdAt',
       sortOrder = 'desc'
@@ -115,16 +124,27 @@ const getMedia = async (req, res) => {
     if (userId) {
       query.user = userId;
     } else if (req.user && req.user.role !== 'admin') {
-      // Non-admin users can only see their own media
-      query.user = req.user._id;
+      // If viewing a specific gallery, check if user has access to it (own or shared)
+      if (galleryId) {
+        const SharedGallery = require('../models/SharedGallery');
+        const Gallery = require('../models/Gallery');
+        
+        // Check if it's user's own gallery or a shared gallery
+        const ownGallery = await Gallery.findOne({ _id: galleryId, user: req.user._id });
+        const sharedGallery = await SharedGallery.findOne({ gallery: galleryId, sharedWith: req.user._id });
+        
+        if (!ownGallery && !sharedGallery) {
+          // User doesn't have access to this gallery
+          query._id = null; // This will return no results
+        }
+        // If user has access, the galleryId filter will handle the rest
+      } else {
+        // For "My Images" view (no galleryId), show only user's own media
+        query.user = req.user._id;
+      }
     } else if (!req.user) {
-      // Unauthenticated users can only see public media
-      query.isPublic = true;
-    }
-
-    // Public filter
-    if (isPublic !== undefined) {
-      query.isPublic = isPublic === 'true';
+      // Unauthenticated users cannot see any media
+      query._id = null; // This will return no results
     }
 
     const sortOptions = {};

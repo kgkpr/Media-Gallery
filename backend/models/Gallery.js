@@ -16,10 +16,7 @@ const gallerySchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  isPublic: {
-    type: Boolean,
-    default: false
-  },
+
   coverImage: {
     type: String,
     default: ''

@@ -251,13 +251,7 @@ const GalleryPage = () => {
                         Shared by {gallery?.sharedBy?.name || gallery?.sharedBy?.email}
                       </span>
                     )}
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      gallery?.isPublic 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {gallery?.isPublic ? 'Public' : 'Private'}
-                    </span>
+
                   </div>
                 </>
               )}
@@ -424,9 +418,7 @@ const GalleryPage = () => {
                 {/* Stats */}
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                   <span>{item.views || 0} views • {item.downloads || 0} downloads</span>
-                  <span className={item.isPublic ? 'text-green-600' : 'text-gray-400'}>
-                    {item.isPublic ? 'Public' : 'Private'}
-                  </span>
+
                 </div>
 
                 {/* Actions */}
