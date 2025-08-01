@@ -4,6 +4,7 @@ const { verifyToken } = require('../middlewares/auth');
 const {
   register,
   verifyEmail,
+  resendOTP,
   login,
   googleLogin,
   forgotPassword,
@@ -14,6 +15,7 @@ const {
 // Public routes
 router.post('/register', register);
 router.post('/verify-email', verifyEmail);
+router.post('/resend-otp', resendOTP);
 router.post('/login', login);
 router.post('/google-login', googleLogin);
 router.post('/forgot-password', forgotPassword);

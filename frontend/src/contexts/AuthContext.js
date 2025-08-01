@@ -95,8 +95,12 @@ export const AuthProvider = ({ children }) => {
         password
       });
       
-      // Handle the new response format with token
-      if (response.data.token) {
+      // Handle the new response format - now requires verification
+      if (response.data.requiresVerification) {
+        toast.success('Registration successful! Please check your email for the verification code.');
+        return { requiresVerification: true, email: response.data.email };
+      } else if (response.data.token) {
+        // Fallback for immediate login (if auto-verification is enabled)
         const { token: newToken, user: userData } = response.data;
         
         setToken(newToken);
@@ -104,10 +108,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', newToken);
         
         toast.success('Registration successful! You can now login.');
-        return true;
-      } else {
-        toast.success('Registration successful! Please check your email for verification.');
-        return true;
+        return { requiresVerification: false };
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
@@ -133,6 +134,21 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       const message = error.response?.data?.message || 'Email verification failed';
+      toast.error(message);
+      return false;
+    }
+  };
+
+  const resendOTP = async (email) => {
+    try {
+      await axios.post('http://localhost:5000/api/auth/resend-otp', {
+        email
+      });
+      
+      toast.success('New verification code sent to your email!');
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to resend verification code';
       toast.error(message);
       return false;
     }
@@ -184,6 +200,7 @@ export const AuthProvider = ({ children }) => {
     googleLogin,
     register,
     verifyEmail,
+    resendOTP,
     forgotPassword,
     resetPassword,
     logout,

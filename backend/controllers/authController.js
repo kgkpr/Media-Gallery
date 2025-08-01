@@ -21,28 +21,34 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
-    // Create user with verified status (skip email verification for now)
+    // Generate OTP
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Create user with unverified status
     const user = new User({
       name,
       email,
       password,
-      isEmailVerified: true // Auto-verify for development
+      isEmailVerified: false,
+      emailVerificationToken: otp,
+      emailVerificationExpires: otpExpires
     });
 
     await user.save();
+    console.log(' User registered, sending OTP:', { email, otp });
 
-    // Generate token immediately
-    const token = generateToken(user._id);
+    // Send OTP email
+    const emailSent = await sendOTPEmail(email, otp, 'Verify Your Email - Media Gallery');
+    if (!emailSent) {
+      // If email fails, still allow user to proceed but log the error
+      console.error('Failed to send OTP email, but user can still verify');
+    }
 
     res.status(201).json({
-      message: 'Registration successful! You can now login.',
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+      message: 'Registration successful! Please check your email for the verification code.',
+      requiresVerification: true,
+      email: email
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -54,6 +60,7 @@ const register = async (req, res) => {
 const verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    console.log('🔍 Verifying OTP:', { email, otp });
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -64,21 +71,36 @@ const verifyEmail = async (req, res) => {
       return res.status(400).json({ message: 'Email already verified' });
     }
 
-    // In a real app, you'd store and verify the OTP
-    // For demo purposes, we'll accept any 6-digit number
-    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
-      return res.status(400).json({ message: 'Invalid OTP format' });
+    // Check if OTP format is valid
+    if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      return res.status(400).json({ message: 'Please enter a valid 6-digit OTP' });
     }
 
+    // Check if OTP matches and hasn't expired
+    if (!user.emailVerificationToken || !user.emailVerificationExpires) {
+      return res.status(400).json({ message: 'No verification token found. Please register again.' });
+    }
+
+    if (user.emailVerificationExpires < new Date()) {
+      return res.status(400).json({ message: 'OTP has expired. Please register again.' });
+    }
+
+    if (user.emailVerificationToken !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP. Please check your email and try again.' });
+    }
+
+    // OTP is valid, verify the user
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     await user.save();
 
+    console.log('✅ Email verified successfully for:', email);
+
     const token = generateToken(user._id);
 
     res.json({
-      message: 'Email verified successfully',
+      message: 'Email verified successfully! Welcome to Media Gallery.',
       token,
       user: {
         id: user._id,
@@ -89,6 +111,46 @@ const verifyEmail = async (req, res) => {
     });
   } catch (error) {
     console.error('Email verification error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Resend OTP
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log('🔄 Resending OTP for:', email);
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: 'Email already verified' });
+    }
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.emailVerificationToken = otp;
+    user.emailVerificationExpires = otpExpires;
+    await user.save();
+
+    // Send OTP email
+    const emailSent = await sendOTPEmail(email, otp, 'Verify Your Email - Media Gallery');
+    if (!emailSent) {
+      console.error('Failed to resend OTP email');
+    }
+
+    console.log('📧 New OTP sent:', { email, otp });
+
+    res.json({
+      message: 'New verification code sent to your email.'
+    });
+  } catch (error) {
+    console.error('Resend OTP error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -265,9 +327,10 @@ const getCurrentUser = async (req, res) => {
 module.exports = {
   register,
   verifyEmail,
+  resendOTP,
   login,
   googleLogin,
   forgotPassword,
   resetPassword,
   getCurrentUser
-}; 
+};

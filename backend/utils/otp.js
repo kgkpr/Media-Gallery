@@ -8,6 +8,9 @@ const createTransporter = () => {
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_PASS
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   });
 };
@@ -25,37 +28,58 @@ const generateVerificationToken = () => {
 // Send OTP email
 const sendOTPEmail = async (email, otp, subject = 'Email Verification') => {
   try {
-    // For development, just log the OTP instead of sending email
+    // Check if Gmail credentials are configured
     if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+      console.log('⚠️  Gmail SMTP not configured - using development mode');
       console.log('📧 Email OTP for development:');
       console.log(`   Email: ${email}`);
       console.log(`   OTP: ${otp}`);
       console.log(`   Subject: ${subject}`);
-      console.log('   (In production, this would be sent via email)');
+      console.log('   💡 To enable Gmail SMTP, see GMAIL_SETUP.md');
       return true;
     }
 
+    console.log('📧 Sending OTP email via Gmail SMTP...');
+    console.log(`   To: ${email}`);
+    console.log(`   From: ${process.env.GMAIL_USER}`);
+    
     const transporter = createTransporter();
     
     const mailOptions = {
-      from: process.env.GMAIL_USER,
+      from: `"Media Gallery" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: subject,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Media Gallery Verification</h2>
-          <p>Your verification code is:</p>
-          <h1 style="color: #007bff; font-size: 48px; text-align: center; letter-spacing: 8px;">${otp}</h1>
-          <p>This code will expire in 10 minutes.</p>
-          <p>If you didn't request this, please ignore this email.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+          <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #333; text-align: center; margin-bottom: 20px;">📱 Media Gallery Verification</h2>
+            <p style="color: #666; font-size: 16px;">Hello!</p>
+            <p style="color: #666; font-size: 16px;">Your verification code is:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <h1 style="color: #007bff; font-size: 48px; letter-spacing: 8px; margin: 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; display: inline-block;">${otp}</h1>
+            </div>
+            <p style="color: #666; font-size: 14px; text-align: center;">⏰ This code will expire in <strong>10 minutes</strong></p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            <p style="color: #999; font-size: 12px; text-align: center;">If you didn't request this verification, please ignore this email.</p>
+            <p style="color: #999; font-size: 12px; text-align: center;">© Media Gallery Team</p>
+          </div>
         </div>
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    const result = await transporter.sendMail(mailOptions);
+    console.log('✅ OTP email sent successfully!');
+    console.log(`   Message ID: ${result.messageId}`);
     return true;
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error('❌ Gmail SMTP Error:', error.message);
+    if (error.code === 'EAUTH') {
+      console.error('   🔐 Authentication failed - check your Gmail credentials in .env');
+      console.error('   💡 Make sure you\'re using an App Password, not your regular Gmail password');
+    } else if (error.code === 'ECONNECTION') {
+      console.error('   🌐 Connection failed - check your internet connection');
+    }
+    console.error('   📖 See GMAIL_SETUP.md for configuration help');
     return false;
   }
 };

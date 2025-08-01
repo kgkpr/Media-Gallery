@@ -16,7 +16,7 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register, verifyEmail } = useAuth();
+  const { register, verifyEmail, resendOTP } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -42,13 +42,15 @@ const RegisterPage = () => {
     setLoading(true);
 
     try {
-      const success = await register(formData.name, formData.email, formData.password);
-      if (success) {
-        // If registration includes token, user is automatically logged in
-        navigate('/dashboard');
-      } else {
+      const result = await register(formData.name, formData.email, formData.password);
+      if (result && result.requiresVerification) {
+        // Registration successful, now need OTP verification
         setStep('verify');
+      } else if (result && !result.requiresVerification) {
+        // Registration successful with immediate login (fallback)
+        navigate('/dashboard');
       }
+      // If result is false, error is already handled in AuthContext
     } catch (error) {
       console.error('Registration error:', error);
     } finally {
@@ -67,6 +69,18 @@ const RegisterPage = () => {
       }
     } catch (error) {
       console.error('Verification error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setLoading(true);
+    try {
+      await resendOTP(formData.email);
+      setOtp(''); // Clear the current OTP input
+    } catch (error) {
+      console.error('Resend OTP error:', error);
     } finally {
       setLoading(false);
     }
@@ -122,14 +136,24 @@ const RegisterPage = () => {
               </button>
             </div>
 
-            <div className="text-center">
+            <div className="text-center space-y-2">
               <button
                 type="button"
-                onClick={() => setStep('register')}
-                className="text-sm text-primary-600 hover:text-primary-500"
+                onClick={handleResendOTP}
+                disabled={loading}
+                className="text-sm text-primary-600 hover:text-primary-500 disabled:opacity-50"
               >
-                Back to registration
+                {loading ? 'Sending...' : 'Resend verification code'}
               </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setStep('register')}
+                  className="text-sm text-gray-600 hover:text-gray-500"
+                >
+                  Back to registration
+                </button>
+              </div>
             </div>
           </form>
         </div>
