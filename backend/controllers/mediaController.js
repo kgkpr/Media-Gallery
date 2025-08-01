@@ -366,31 +366,38 @@ const downloadMediaAsZip = async (req, res) => {
 const getMediaStats = async (req, res) => {
   try {
     const userId = req.user.role === 'admin' ? req.query.userId : req.user._id;
+    const Gallery = require('../models/Gallery');
+    const SharedGallery = require('../models/SharedGallery');
 
-    const stats = await Media.aggregate([
+    // Get media stats
+    const mediaStats = await Media.aggregate([
       { $match: { user: userId } },
       {
         $group: {
           _id: null,
           totalMedia: { $sum: 1 },
-          totalSize: { $sum: '$fileSize' },
-          totalViews: { $sum: '$views' },
-          totalDownloads: { $sum: '$downloads' }
+          totalSize: { $sum: '$fileSize' }
         }
       }
     ]);
 
+    // Get gallery counts
+    const totalGalleries = await Gallery.countDocuments({ user: userId });
+    
+    // Get shared galleries count (galleries received by this user from others)
+    const totalSharedGalleries = await SharedGallery.countDocuments({ sharedWith: userId });
+
     const recentMedia = await Media.find({ user: userId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('title fileUrl createdAt');
+      .select('title fileUrl createdAt views downloads');
 
     res.json({
-      stats: stats[0] || {
-        totalMedia: 0,
-        totalSize: 0,
-        totalViews: 0,
-        totalDownloads: 0
+      stats: {
+        totalMedia: mediaStats[0]?.totalMedia || 0,
+        totalSize: mediaStats[0]?.totalSize || 0,
+        totalGalleries,
+        totalSharedGalleries
       },
       recentMedia
     });

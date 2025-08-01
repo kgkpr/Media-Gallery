@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from 'react-query';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { FiImage, FiEye, FiDownload, FiCalendar, FiUser } from 'react-icons/fi';
+import { FiImage, FiFolder, FiShare2, FiUser } from 'react-icons/fi';
 
 const DashboardPage = () => {
   const { data: stats, isLoading } = useQuery('mediaStats', async () => {
@@ -61,11 +61,11 @@ const DashboardPage = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-green-100 text-green-600">
-              <FiEye className="h-6 w-6" />
+              <FiFolder className="h-6 w-6" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Views</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats?.stats?.totalViews || 0}</p>
+              <p className="text-sm font-medium text-gray-600">Total Galleries</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats?.stats?.totalGalleries || 0}</p>
             </div>
           </div>
         </div>
@@ -73,11 +73,11 @@ const DashboardPage = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-              <FiDownload className="h-6 w-6" />
+              <FiShare2 className="h-6 w-6" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Downloads</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats?.stats?.totalDownloads || 0}</p>
+              <p className="text-sm font-medium text-gray-600">Total Shared Galleries</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats?.stats?.totalSharedGalleries || 0}</p>
             </div>
           </div>
         </div>
