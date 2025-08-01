@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
-import { FiEye, FiDownload, FiEdit, FiTrash2, FiX, FiTag, FiCalendar, FiUser, FiEye as FiViews, FiDownload as FiDownloads, FiShare2 } from 'react-icons/fi';
+import { FiEye, FiDownload, FiEdit, FiTrash2, FiX, FiShare2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const MediaDetailPage = () => {
@@ -344,7 +344,15 @@ const MediaDetailPage = () => {
             {/* Actions */}
             <div className="border-t pt-4">
               <h4 className="text-md font-semibold text-gray-900 mb-3">Actions</h4>
-              <div className="grid grid-cols-2 gap-2">
+              {media.isSharedGalleryAccess && (
+                <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-700">
+                    <FiShare2 className="inline mr-1" />
+                    You're viewing this image from a shared gallery (read-only)
+                  </p>
+                </div>
+              )}
+              <div className={`grid gap-2 ${media.canEdit ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <button
                   onClick={() => downloadMutation.mutate()}
                   disabled={downloadMutation.isLoading}
@@ -354,27 +362,31 @@ const MediaDetailPage = () => {
                   {downloadMutation.isLoading ? 'Downloading...' : 'Download'}
                 </button>
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="btn-outline flex items-center justify-center"
-                >
-                  <FiEdit className="mr-2 h-4 w-4" />
-                  Edit
-                </button>
-                <button
                   onClick={() => setIsFullscreen(true)}
                   className="btn-outline flex items-center justify-center"
                 >
                   <FiEye className="mr-2 h-4 w-4" />
                   Full Screen
                 </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleteMutation.isLoading}
-                  className="btn-danger flex items-center justify-center"
-                >
-                  <FiTrash2 className="mr-2 h-4 w-4" />
-                  {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
-                </button>
+                {media.canEdit && (
+                  <>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="btn-outline flex items-center justify-center"
+                    >
+                      <FiEdit className="mr-2 h-4 w-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleteMutation.isLoading}
+                      className="btn-danger flex items-center justify-center"
+                    >
+                      <FiTrash2 className="mr-2 h-4 w-4" />
+                      {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

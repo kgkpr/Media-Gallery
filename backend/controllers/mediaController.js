@@ -133,7 +133,13 @@ const getMedia = async (req, res) => {
         const ownGallery = await Gallery.findOne({ _id: galleryId, user: req.user._id });
         const sharedGallery = await SharedGallery.findOne({ gallery: galleryId, sharedWith: req.user._id });
         
-        if (!ownGallery && !sharedGallery) {
+        if (ownGallery && !sharedGallery) {
+          // User owns this gallery - show their own media
+          query.user = req.user._id;
+        } else if (sharedGallery && !ownGallery) {
+          // This is a shared gallery - only the receiver should see the images
+          // Don't add user filter, let galleryId filter handle it
+        } else if (!ownGallery && !sharedGallery) {
           // User doesn't have access to this gallery
           query._id = null; // This will return no results
         }
@@ -176,16 +182,45 @@ const getMedia = async (req, res) => {
 const getMediaById = async (req, res) => {
   try {
     const media = await Media.findById(req.params.id)
-      .populate('user', 'name email');
+      .populate('user', 'name email')
+      .populate('gallery', 'name');
 
     if (!media) {
       return res.status(404).json({ message: 'Media not found' });
     }
 
+    let isSharedGalleryAccess = false;
+    let canEdit = false;
+
     // Check access permissions - only if user is authenticated
     if (req.user) {
-      if (!media.isPublic && media.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Access denied' });
+      const isOwner = media.user._id.toString() === req.user._id.toString();
+      const isAdmin = req.user.role === 'admin';
+      
+      // Check if this media is in a shared gallery
+      if (media.gallery) {
+        const SharedGallery = require('../models/SharedGallery');
+        const sharedGallery = await SharedGallery.findOne({
+          gallery: media.gallery._id,
+          sharedWith: req.user._id
+        });
+        
+        if (sharedGallery) {
+          isSharedGalleryAccess = true;
+          // User is accessing this media through a shared gallery
+          canEdit = false; // No edit permissions for shared gallery access
+        } else if (isOwner || isAdmin) {
+          canEdit = true; // Owner or admin can edit
+        } else if (!media.isPublic) {
+          return res.status(403).json({ message: 'Access denied' });
+        }
+      } else {
+        // Media not in a gallery - check normal permissions
+        if (isOwner || isAdmin) {
+          canEdit = true;
+        } else if (!media.isPublic) {
+          return res.status(403).json({ message: 'Access denied' });
+        }
       }
       
       // Increment views only for authenticated users
@@ -198,7 +233,13 @@ const getMediaById = async (req, res) => {
       }
     }
 
-    res.json({ media });
+    res.json({ 
+      media: {
+        ...media.toObject(),
+        isSharedGalleryAccess,
+        canEdit
+      }
+    });
   } catch (error) {
     console.error('Get media by ID error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -290,13 +331,31 @@ const deleteMedia = async (req, res) => {
 // Download single media file
 const downloadMedia = async (req, res) => {
   try {
-    const media = await Media.findById(req.params.id);
+    const media = await Media.findById(req.params.id)
+      .populate('gallery', 'name');
     if (!media) {
       return res.status(404).json({ message: 'Media not found' });
     }
 
     // Check access permissions
-    if (!media.isPublic && media.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    const isOwner = media.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    let hasAccess = media.isPublic || isOwner || isAdmin;
+
+    // If not owner/admin/public, check if user has access through shared gallery
+    if (!hasAccess && media.gallery) {
+      const SharedGallery = require('../models/SharedGallery');
+      const sharedGallery = await SharedGallery.findOne({
+        gallery: media.gallery._id,
+        sharedWith: req.user._id
+      });
+      
+      if (sharedGallery) {
+        hasAccess = true; // User can download from shared gallery
+      }
+    }
+
+    if (!hasAccess) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
