@@ -60,26 +60,11 @@ const Layout = () => {
             </button>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  isActive(item.href)
-                    ? 'bg-primary-100 text-primary-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </Link>
-            ))}
-            {isAdmin && (
+            {isAdmin ? (
+              // Admin-only navigation
               <>
-                <div className="border-t border-gray-200 my-4" />
                 <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Admin
+                  Admin Panel
                 </div>
                 {adminNavigation.map((item) => (
                   <Link
@@ -97,6 +82,23 @@ const Layout = () => {
                   </Link>
                 ))}
               </>
+            ) : (
+              // Regular user navigation
+              navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    isActive(item.href)
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </Link>
+              ))
             )}
           </nav>
         </div>
@@ -109,25 +111,11 @@ const Layout = () => {
             <h1 className="text-xl font-bold text-gray-900">Media Gallery</h1>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  isActive(item.href)
-                    ? 'bg-primary-100 text-primary-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </Link>
-            ))}
-            {isAdmin && (
+            {isAdmin ? (
+              // Admin-only navigation
               <>
-                <div className="border-t border-gray-200 my-4" />
                 <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Admin
+                  Admin Panel
                 </div>
                 {adminNavigation.map((item) => (
                   <Link
@@ -144,6 +132,22 @@ const Layout = () => {
                   </Link>
                 ))}
               </>
+            ) : (
+              // Regular user navigation
+              navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    isActive(item.href)
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </Link>
+              ))
             )}
           </nav>
         </div>

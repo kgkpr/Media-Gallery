@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
-import { FiMail, FiSearch, FiFilter, FiTrash2, FiUser, FiCalendar, FiMessageSquare, FiEye, FiX } from 'react-icons/fi';
+import { FiMail, FiSearch, FiFilter, FiTrash2, FiUser, FiCalendar, FiEye, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const AdminMessagesPage = () => {
@@ -47,9 +47,38 @@ const AdminMessagesPage = () => {
     }
   );
 
+  // Mark message as read mutation
+  const markAsReadMutation = useMutation(
+    async (messageId) => {
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/api/contact/admin/${messageId}/status`, 
+        { status: 'read' }, 
+        config
+      );
+      return response.data;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('messages');
+      },
+      onError: (error) => {
+        console.error('Failed to mark message as read:', error);
+      }
+    }
+  );
+
   const handleDeleteMessage = (messageId) => {
     if (window.confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
       deleteMessageMutation.mutate(messageId);
+    }
+  };
+
+  const handleViewMessage = (message) => {
+    setSelectedMessage(message);
+    // Mark as read if it's currently unread
+    if (message.status === 'unread') {
+      markAsReadMutation.mutate(message._id);
     }
   };
 
@@ -159,10 +188,10 @@ const AdminMessagesPage = () => {
                     Sender
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Subject
+                    Message
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Message
+                    Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
@@ -188,13 +217,19 @@ const AdminMessagesPage = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{message.subject}</div>
-                    </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900 max-w-xs truncate">
                         {message.message}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        message.status === 'read' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {message.status === 'read' ? 'Read' : 'Unread'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(message.createdAt)}
@@ -202,7 +237,7 @@ const AdminMessagesPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => setSelectedMessage(message)}
+                          onClick={() => handleViewMessage(message)}
                           className="text-indigo-600 hover:text-indigo-900"
                           title="View Details"
                         >
@@ -261,11 +296,6 @@ const AdminMessagesPage = () => {
                     <FiMail className="h-4 w-4 text-gray-400 mr-2" />
                     <span className="text-gray-900">{selectedMessage.email}</span>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Subject</label>
-                  <p className="mt-1 text-gray-900">{selectedMessage.subject}</p>
                 </div>
 
                 <div>

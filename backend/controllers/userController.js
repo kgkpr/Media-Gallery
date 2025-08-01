@@ -102,7 +102,7 @@ const updateUser = async (req, res) => {
   }
 };
 
-// Admin: Delete user (soft delete)
+// Admin: Delete user (hard delete)
 const deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -115,11 +115,10 @@ const deleteUser = async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete your own account' });
     }
 
-    // Soft delete by deactivating
-    user.isActive = false;
-    await user.save();
+    // Hard delete - actually remove from database
+    await User.findByIdAndDelete(req.params.id);
 
-    res.json({ message: 'User deactivated successfully' });
+    res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ message: 'Server error' });

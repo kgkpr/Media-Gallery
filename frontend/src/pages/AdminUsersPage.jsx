@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
-import { FiUsers, FiSearch, FiFilter, FiEdit, FiTrash2, FiEye, FiEyeOff, FiMail, FiUser, FiCalendar } from 'react-icons/fi';
+import { FiUsers, FiSearch, FiFilter, FiEdit, FiTrash2, FiEye, FiEyeOff, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const AdminUsersPage = () => {
@@ -9,6 +9,8 @@ const AdminUsersPage = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'user' });
   const queryClient = useQueryClient();
 
   // Fetch users
@@ -75,6 +77,34 @@ const AdminUsersPage = () => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       deleteUserMutation.mutate(userId);
     }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      role: user.role
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editForm.name.trim() || !editForm.email.trim()) {
+      toast.error('Name and email are required');
+      return;
+    }
+    
+    updateUserMutation.mutate({ 
+      userId: editingUser._id, 
+      userData: editForm 
+    });
+    setEditingUser(null);
+    setEditForm({ name: '', email: '', role: 'user' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUser(null);
+    setEditForm({ name: '', email: '', role: 'user' });
   };
 
   const formatDate = (dateString) => {
@@ -244,6 +274,13 @@ const AdminUsersPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
+                          onClick={() => handleEditUser(user)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit User"
+                        >
+                          <FiEdit className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => handleUpdateUser(user._id, { 
                             isActive: !user.isActive 
                           })}
@@ -278,6 +315,83 @@ const AdminUsersPage = () => {
           </div>
         )}
       </div>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Edit User</h3>
+                <button
+                  onClick={handleCancelEdit}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="input-field"
+                    placeholder="Enter user name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="input-field"
+                    placeholder="Enter user email"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Role
+                  </label>
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={handleCancelEdit}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="btn-primary"
+                  disabled={updateUserMutation.isLoading}
+                >
+                  {updateUserMutation.isLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
