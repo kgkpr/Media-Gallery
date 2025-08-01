@@ -17,14 +17,18 @@ const ContactPage = () => {
 
   // Fetch user's messages
   const { data: messages, isLoading } = useQuery('myMessages', async () => {
-    const response = await axios.get('http://localhost:5000/api/contact/my-messages');
+    const token = localStorage.getItem('token');
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    const response = await axios.get('http://localhost:5000/api/contact/my-messages', config);
     return response.data;
   });
 
   // Submit message mutation
   const submitMutation = useMutation(
     async (data) => {
-      const response = await axios.post('http://localhost:5000/api/contact', data);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.post('http://localhost:5000/api/contact', data, config);
       return response.data;
     },
     {
@@ -42,7 +46,9 @@ const ContactPage = () => {
   // Update message mutation
   const updateMutation = useMutation(
     async ({ id, message }) => {
-      const response = await axios.put(`http://localhost:5000/api/contact/${id}`, { message });
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/api/contact/${id}`, { message }, config);
       return response.data;
     },
     {
@@ -60,7 +66,9 @@ const ContactPage = () => {
   // Delete message mutation
   const deleteMutation = useMutation(
     async (id) => {
-      await axios.delete(`http://localhost:5000/api/contact/${id}`);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      await axios.delete(`http://localhost:5000/api/contact/${id}`, config);
     },
     {
       onSuccess: () => {

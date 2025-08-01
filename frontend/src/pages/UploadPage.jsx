@@ -20,11 +20,15 @@ const UploadPage = () => {
       formData.append('tags', fileData.tags);
       formData.append('isPublic', fileData.isPublic);
 
-      const response = await axios.post('http://localhost:5000/api/media/upload', formData, {
+      const token = localStorage.getItem('token');
+      const config = {
         headers: {
           'Content-Type': 'multipart/form-data',
+          ...(token && { Authorization: `Bearer ${token}` })
         },
-      });
+      };
+
+      const response = await axios.post('http://localhost:5000/api/media/upload', formData, config);
       return response.data;
     },
     {

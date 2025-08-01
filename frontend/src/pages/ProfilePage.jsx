@@ -23,7 +23,9 @@ const ProfilePage = () => {
   // Update profile mutation
   const updateProfileMutation = useMutation(
     async (userData) => {
-      const response = await axios.put(`http://localhost:5000/api/users/profile`, userData);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/api/users/profile`, userData, config);
       return response.data;
     },
     {
@@ -42,7 +44,9 @@ const ProfilePage = () => {
   // Change password mutation
   const changePasswordMutation = useMutation(
     async (passwordData) => {
-      const response = await axios.put(`http://localhost:5000/api/users/change-password`, passwordData);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/api/users/change-password`, passwordData, config);
       return response.data;
     },
     {

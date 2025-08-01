@@ -18,7 +18,10 @@ const GalleryPage = () => {
       if (search) params.append('search', search);
       if (selectedTags.length > 0) params.append('tags', selectedTags.join(','));
       
-      const response = await axios.get(`http://localhost:5000/api/media?${params.toString()}`);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      
+      const response = await axios.get(`http://localhost:5000/api/media?${params.toString()}`, config);
       return response.data;
     }
   );

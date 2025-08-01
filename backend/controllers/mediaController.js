@@ -100,12 +100,12 @@ const getMedia = async (req, res) => {
     // User filter
     if (userId) {
       query.user = userId;
-    } else if (req.user.role !== 'admin') {
-      // Non-admin users can only see their own media and public media
-      query.$or = [
-        { user: req.user._id },
-        { isPublic: true }
-      ];
+    } else if (req.user && req.user.role !== 'admin') {
+      // Non-admin users can only see their own media
+      query.user = req.user._id;
+    } else if (!req.user) {
+      // Unauthenticated users can only see public media
+      query.isPublic = true;
     }
 
     // Public filter
@@ -174,6 +174,7 @@ const getMediaById = async (req, res) => {
 const updateMedia = async (req, res) => {
   try {
     const { title, description, tags, isPublic } = req.body;
+    console.log('Update request body:', req.body);
 
     const media = await Media.findById(req.params.id);
     if (!media) {
@@ -185,12 +186,28 @@ const updateMedia = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    media.title = title || media.title;
-    media.description = description || media.description;
-    media.tags = tags ? tags.split(',').map(tag => tag.trim()) : media.tags;
-    media.isPublic = isPublic !== undefined ? isPublic === 'true' : media.isPublic;
+    // Update fields
+    if (title !== undefined) media.title = title;
+    if (description !== undefined) media.description = description;
+    
+    // Handle tags - if it's an array, use it directly; if it's a string, split it
+    if (tags !== undefined) {
+      if (Array.isArray(tags)) {
+        media.tags = tags;
+      } else if (typeof tags === 'string') {
+        media.tags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      } else {
+        media.tags = [];
+      }
+    }
+    
+    // Handle isPublic - convert to boolean
+    if (isPublic !== undefined) {
+      media.isPublic = Boolean(isPublic);
+    }
 
     await media.save();
+    console.log('Updated media:', media);
 
     res.json({
       message: 'Media updated successfully',

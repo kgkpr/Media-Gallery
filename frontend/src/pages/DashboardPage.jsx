@@ -6,7 +6,9 @@ import { FiImage, FiEye, FiDownload, FiCalendar, FiUser } from 'react-icons/fi';
 
 const DashboardPage = () => {
   const { data: stats, isLoading } = useQuery('mediaStats', async () => {
-    const response = await axios.get('http://localhost:5000/api/media/stats');
+    const token = localStorage.getItem('token');
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    const response = await axios.get('http://localhost:5000/api/media/stats', config);
     return response.data;
   });
 

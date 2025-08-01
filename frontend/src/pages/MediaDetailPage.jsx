@@ -36,7 +36,9 @@ const MediaDetailPage = () => {
   // Delete mutation
   const deleteMutation = useMutation(
     async () => {
-      await axios.delete(`http://localhost:5000/api/media/${id}`);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      await axios.delete(`http://localhost:5000/api/media/${id}`, config);
     },
     {
       onSuccess: () => {
@@ -53,7 +55,9 @@ const MediaDetailPage = () => {
   // Update mutation
   const updateMutation = useMutation(
     async (data) => {
-      const response = await axios.put(`http://localhost:5000/api/media/${id}`, data);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/api/media/${id}`, data, config);
       return response.data;
     },
     {
@@ -71,9 +75,12 @@ const MediaDetailPage = () => {
   // Download mutation
   const downloadMutation = useMutation(
     async () => {
-      const response = await axios.get(`http://localhost:5000/api/media/${id}/download`, {
-        responseType: 'blob'
-      });
+      const token = localStorage.getItem('token');
+      const config = {
+        responseType: 'blob',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      };
+      const response = await axios.get(`http://localhost:5000/api/media/${id}/download`, config);
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');

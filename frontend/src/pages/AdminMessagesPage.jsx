@@ -19,7 +19,9 @@ const AdminMessagesPage = () => {
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       
-      const response = await axios.get(`http://localhost:5000/api/contact/admin/all?${params}`);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.get(`http://localhost:5000/api/contact/admin/all?${params}`, config);
       return response.data;
     }
   );
@@ -27,7 +29,9 @@ const AdminMessagesPage = () => {
   // Delete message mutation
   const deleteMessageMutation = useMutation(
     async (messageId) => {
-      const response = await axios.delete(`http://localhost:5000/api/contact/admin/${messageId}`);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.delete(`http://localhost:5000/api/contact/admin/${messageId}`, config);
       return response.data;
     },
     {

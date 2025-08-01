@@ -20,7 +20,9 @@ const AdminUsersPage = () => {
       if (roleFilter !== 'all') params.append('role', roleFilter);
       if (statusFilter !== 'all') params.append('isActive', statusFilter === 'active' ? 'true' : 'false');
       
-      const response = await axios.get(`http://localhost:5000/api/users/admin/all?${params}`);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.get(`http://localhost:5000/api/users/admin/all?${params}`, config);
       return response.data;
     }
   );
@@ -28,7 +30,9 @@ const AdminUsersPage = () => {
   // Update user mutation
   const updateUserMutation = useMutation(
     async ({ userId, userData }) => {
-      const response = await axios.put(`http://localhost:5000/api/users/admin/${userId}`, userData);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/api/users/admin/${userId}`, userData, config);
       return response.data;
     },
     {
@@ -45,7 +49,9 @@ const AdminUsersPage = () => {
   // Delete user mutation
   const deleteUserMutation = useMutation(
     async (userId) => {
-      const response = await axios.delete(`http://localhost:5000/api/users/admin/${userId}`);
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.delete(`http://localhost:5000/api/users/admin/${userId}`, config);
       return response.data;
     },
     {
