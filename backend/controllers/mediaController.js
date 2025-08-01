@@ -88,7 +88,13 @@ const getMedia = async (req, res) => {
 
     // Search filter
     if (search) {
-      query.$text = { $search: search };
+      // Use text search if available, otherwise use regex
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { title: searchRegex },
+        { description: searchRegex },
+        { tags: searchRegex }
+      ];
     }
 
     // Tags filter

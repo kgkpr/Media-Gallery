@@ -31,6 +31,53 @@ const GalleryPage = () => {
     refetch();
   };
 
+  // Auto-search when search term changes
+  React.useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      refetch();
+    }, 500); // Debounce search for 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [search, selectedTags]);
+
+  // Download selected media as ZIP
+  const handleDownloadZip = async () => {
+    if (selectedMedia.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        responseType: 'blob'
+      };
+      
+      const response = await axios.post(
+        'http://localhost:5000/api/media/download-zip',
+        { mediaIds: selectedMedia },
+        config
+      );
+      
+      // Create a blob and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'media-gallery.zip');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      // Clear selection after successful download
+      setSelectedMedia([]);
+    } catch (error) {
+      console.error('Download ZIP error:', error);
+      alert('Failed to download ZIP: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
   const toggleMediaSelection = (mediaId) => {
     setSelectedMedia(prev => 
       prev.includes(mediaId) 
@@ -109,7 +156,7 @@ const GalleryPage = () => {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by title, description, or tags..."
+                placeholder="Search by image name, description, or tags..."
                 className="input-field pl-10"
               />
             </div>
@@ -283,11 +330,17 @@ const GalleryPage = () => {
             <span className="text-sm text-gray-600">
               {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
             </span>
-            <button className="btn-secondary text-xs py-1 px-3 flex items-center">
+            <button 
+              onClick={handleDownloadZip}
+              className="btn-secondary text-xs py-1 px-3 flex items-center"
+            >
               <FiDownload className="mr-1 h-3 w-3" />
               Download
             </button>
-            <button className="btn-outline text-xs py-1 px-3">
+            <button 
+              onClick={() => setSelectedMedia([])}
+              className="btn-outline text-xs py-1 px-3"
+            >
               Clear
             </button>
           </div>
