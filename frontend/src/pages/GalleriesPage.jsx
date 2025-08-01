@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { FiEye, FiFolder, FiTag, FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FiEye, FiFolder, FiPlus, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const GalleriesPage = () => {
@@ -126,7 +126,7 @@ const GalleriesPage = () => {
           {galleries.map((gallery) => (
             <div
               key={gallery._id}
-              className="bg-white rounded-lg shadow hover:shadow-md transition-shadow"
+              className="bg-white rounded-lg shadow hover:shadow-md transition-shadow flex flex-col h-full"
             >
               {/* Gallery Cover */}
               <div className="h-48 bg-gray-100 rounded-t-lg flex items-center justify-center">
@@ -134,7 +134,7 @@ const GalleriesPage = () => {
               </div>
               
               {/* Gallery Content */}
-              <div className="p-6">
+              <div className="p-6 flex flex-col flex-1">
                                  <div className="flex items-start justify-between mb-3">
                    <div className="flex-1">
                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -149,47 +149,34 @@ const GalleriesPage = () => {
                  </div>
 
                                  {/* Gallery Stats */}
-                 <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                 <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                    <span>
                      {gallery.isShared ? 'Shared ' : 'Created '}
                      {formatDate(gallery.isShared ? gallery.sharedAt : gallery.createdAt)}
                    </span>
-                   <div className="flex items-center space-x-2">
-                     {gallery.isShared && (
-                       <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                         Shared
-                       </span>
-                     )}
-
-                   </div>
+                   {gallery.isShared && (
+                     <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                       Shared
+                     </span>
+                   )}
                  </div>
 
                                  {/* Actions */}
-                 <div className="flex items-center space-x-2">
+                 <div className="flex items-center space-x-2 mt-auto pt-4">
                    <Link
                      to={`/gallery/${gallery._id}`}
-                     className="btn-primary text-sm py-2 px-4 flex items-center flex-1 justify-center"
+                     className="btn-primary text-sm h-10 px-4 flex items-center flex-1 justify-center rounded-lg"
                    >
                      <FiEye className="mr-2 h-4 w-4" />
                      View Gallery
                    </Link>
-                   {!gallery.isShared ? (
-                     <button
-                       onClick={() => handleDeleteGallery(gallery._id, gallery.name)}
-                       className="btn-danger text-sm py-2 px-3 flex items-center"
-                       title="Delete gallery"
-                     >
-                       <FiTrash2 className="h-4 w-4" />
-                     </button>
-                   ) : (
-                     <button
-                       onClick={() => handleDeleteGallery(gallery._id, gallery.name)}
-                       className="btn-secondary text-sm py-2 px-3 flex items-center border border-gray-300 hover:bg-gray-50"
-                       title="Remove from shared galleries"
-                     >
-                       <FiTrash2 className="h-4 w-4" />
-                     </button>
-                   )}
+                   <button
+                     onClick={() => handleDeleteGallery(gallery._id, gallery.name)}
+                     className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg h-10 w-10 flex items-center justify-center transition-colors flex-shrink-0"
+                     title={!gallery.isShared ? "Delete gallery permanently" : "Remove from my shared galleries"}
+                   >
+                     <FiTrash2 className="h-4 w-4" />
+                   </button>
                  </div>
               </div>
             </div>
