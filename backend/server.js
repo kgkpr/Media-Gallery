@@ -66,6 +66,7 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/galleries', galleryRoutes);
+app.use('/api/setup', require('./routes/setupRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

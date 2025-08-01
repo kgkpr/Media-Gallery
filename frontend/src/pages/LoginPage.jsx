@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
-import toast from 'react-hot-toast';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -26,9 +25,14 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const success = await login(formData.email, formData.password);
-      if (success) {
-        navigate('/dashboard');
+      const result = await login(formData.email, formData.password);
+      if (result && result.success) {
+        // Redirect admin users to admin dashboard, regular users to dashboard
+        if (result.user && result.user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (error) {
       console.error('Login error:', error);

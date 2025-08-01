@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       
       toast.success('Login successful!');
-      return true;
+      return { success: true, user: userData };
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
       toast.error(message);

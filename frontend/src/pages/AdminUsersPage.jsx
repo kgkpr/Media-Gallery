@@ -12,7 +12,7 @@ const AdminUsersPage = () => {
   const queryClient = useQueryClient();
 
   // Fetch users
-  const { data: users, isLoading, error } = useQuery(
+  const { data: usersData, isLoading, error } = useQuery(
     ['users', searchTerm, roleFilter, statusFilter],
     async () => {
       const params = new URLSearchParams();
@@ -26,6 +26,8 @@ const AdminUsersPage = () => {
       return response.data;
     }
   );
+
+  const users = usersData?.users || [];
 
   // Update user mutation
   const updateUserMutation = useMutation(

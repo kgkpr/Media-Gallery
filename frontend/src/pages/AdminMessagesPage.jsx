@@ -12,7 +12,7 @@ const AdminMessagesPage = () => {
   const queryClient = useQueryClient();
 
   // Fetch messages
-  const { data: messages, isLoading, error } = useQuery(
+  const { data: messagesData, isLoading, error } = useQuery(
     ['messages', searchTerm, statusFilter],
     async () => {
       const params = new URLSearchParams();
@@ -25,6 +25,8 @@ const AdminMessagesPage = () => {
       return response.data;
     }
   );
+
+  const messages = messagesData?.messages || [];
 
   // Delete message mutation
   const deleteMessageMutation = useMutation(

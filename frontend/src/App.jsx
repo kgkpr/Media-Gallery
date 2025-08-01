@@ -16,6 +16,7 @@ import ProfilePage from './pages/ProfilePage';
 import ContactPage from './pages/ContactPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminMessagesPage from './pages/AdminMessagesPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Components
@@ -61,6 +62,7 @@ function App() {
                 
                 {/* Admin routes */}
                 <Route path="admin" element={<AdminRoute />}>
+                  <Route index element={<AdminDashboardPage />} />
                   <Route path="users" element={<AdminUsersPage />} />
                   <Route path="messages" element={<AdminMessagesPage />} />
                 </Route>

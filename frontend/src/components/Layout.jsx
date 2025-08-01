@@ -37,6 +37,7 @@ const Layout = () => {
   ];
 
   const adminNavigation = [
+    { name: 'Admin Dashboard', href: '/admin', icon: FiSettings },
     { name: 'User Management', href: '/admin/users', icon: FiUsers },
     { name: 'Messages', href: '/admin/messages', icon: FiMail },
   ];
