@@ -48,23 +48,45 @@ const createGallery = async (req, res) => {
 const getGalleries = async (req, res) => {
   try {
     const { search, isPublic } = req.query;
-    const query = { user: req.user._id };
-
-    // Search filter
+    
+    // Get user's own galleries
+    const ownQuery = { user: req.user._id };
     if (search) {
-      query.$text = { $search: search };
+      ownQuery.$text = { $search: search };
     }
-
-    // Public filter
     if (isPublic !== undefined) {
-      query.isPublic = isPublic === 'true';
+      ownQuery.isPublic = isPublic === 'true';
     }
 
-    const galleries = await Gallery.find(query)
+    const ownGalleries = await Gallery.find(ownQuery)
       .sort({ createdAt: -1 })
       .exec();
 
-    res.json({ galleries });
+    // Get shared galleries
+    const SharedGallery = require('../models/SharedGallery');
+    const sharedGalleries = await SharedGallery.find({ sharedWith: req.user._id })
+      .populate({
+        path: 'gallery',
+        populate: { path: 'user', select: 'name email' }
+      })
+      .populate('sharedBy', 'name email')
+      .sort({ sharedAt: -1 })
+      .exec();
+
+    // Filter out null galleries (in case they were deleted)
+    const validSharedGalleries = sharedGalleries
+      .filter(sg => sg.gallery)
+      .map(sg => ({
+        ...sg.gallery.toObject(),
+        isShared: true,
+        sharedBy: sg.sharedBy,
+        sharedAt: sg.sharedAt
+      }));
+
+    res.json({ 
+      galleries: [...ownGalleries, ...validSharedGalleries],
+      sharedGalleries: validSharedGalleries
+    });
   } catch (error) {
     console.error('Get galleries error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -81,9 +103,29 @@ const getGalleryById = async (req, res) => {
       return res.status(404).json({ message: 'Gallery not found' });
     }
 
+    // Check if this is a shared gallery
+    const SharedGallery = require('../models/SharedGallery');
+    const sharedGallery = await SharedGallery.findOne({
+      gallery: req.params.id,
+      sharedWith: req.user._id
+    }).populate('sharedBy', 'name email');
+
     // Check access permissions
-    if (!gallery.isPublic && gallery.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    const isOwner = gallery.user._id.toString() === req.user._id.toString();
+    const isShared = sharedGallery !== null;
+    const isPublic = gallery.isPublic;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isPublic && !isOwner && !isShared && !isAdmin) {
       return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Add shared information if this is a shared gallery
+    if (isShared) {
+      gallery = gallery.toObject();
+      gallery.isShared = true;
+      gallery.sharedBy = sharedGallery.sharedBy;
+      gallery.sharedAt = sharedGallery.sharedAt;
     }
 
     res.json({ gallery });
@@ -144,11 +186,70 @@ const deleteGallery = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    await gallery.remove();
+    await gallery.deleteOne();
 
     res.json({ message: 'Gallery deleted successfully' });
   } catch (error) {
     console.error('Delete gallery error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Share gallery
+const shareGallery = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const galleryId = req.params.id;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const gallery = await Gallery.findById(galleryId);
+    if (!gallery) {
+      return res.status(404).json({ message: 'Gallery not found' });
+    }
+
+    // Check ownership
+    if (gallery.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Check if user with this email exists
+    const User = require('../models/User');
+    const recipient = await User.findOne({ email: email.trim() });
+    
+    if (!recipient) {
+      return res.status(404).json({ message: 'User with this email not found. They need to register first.' });
+    }
+
+    // Create a shared gallery record or update existing one
+    const SharedGallery = require('../models/SharedGallery');
+    let sharedGallery = await SharedGallery.findOne({
+      gallery: galleryId,
+      sharedWith: recipient._id
+    });
+
+    if (!sharedGallery) {
+      sharedGallery = new SharedGallery({
+        gallery: galleryId,
+        sharedBy: req.user._id,
+        sharedWith: recipient._id,
+        sharedAt: new Date()
+      });
+      await sharedGallery.save();
+    }
+
+    // TODO: Send email notification here
+    // For now, we'll just return success
+    // In a real implementation, you would send an email with a link to view the gallery
+
+    res.json({ 
+      message: 'Gallery shared successfully',
+      sharedWith: recipient.email
+    });
+  } catch (error) {
+    console.error('Share gallery error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -158,5 +259,6 @@ module.exports = {
   getGalleries,
   getGalleryById,
   updateGallery,
-  deleteGallery
+  deleteGallery,
+  shareGallery
 }; 

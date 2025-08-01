@@ -22,7 +22,7 @@ const uploadMedia = async (req, res) => {
         return res.status(400).json({ message: errors.join(', ') });
       }
 
-      const { title, description, tags, isPublic } = req.body;
+      const { title, description, tags, isPublic, galleryId } = req.body;
 
       // Get image dimensions
       let dimensions = {};
@@ -44,7 +44,8 @@ const uploadMedia = async (req, res) => {
         mimeType: req.file.mimetype,
         dimensions,
         isPublic: isPublic === 'true',
-        user: req.user._id
+        user: req.user._id,
+        gallery: galleryId || null
       });
 
       await media.save();
@@ -60,6 +61,7 @@ const uploadMedia = async (req, res) => {
           fileSize: media.formattedSize,
           dimensions: media.dimensions,
           isPublic: media.isPublic,
+          gallery: media.gallery,
           createdAt: media.createdAt
         }
       });
@@ -80,6 +82,7 @@ const getMedia = async (req, res) => {
       tags, 
       userId,
       isPublic,
+      galleryId,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -103,6 +106,11 @@ const getMedia = async (req, res) => {
       query.tags = { $in: tagArray };
     }
 
+    // Gallery filter
+    if (galleryId) {
+      query.gallery = galleryId;
+    }
+
     // User filter
     if (userId) {
       query.user = userId;
@@ -124,6 +132,7 @@ const getMedia = async (req, res) => {
 
     const media = await Media.find(query)
       .populate('user', 'name email')
+      .populate('gallery', 'name')
       .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit)

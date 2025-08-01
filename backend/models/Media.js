@@ -48,6 +48,10 @@ const mediaSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  gallery: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gallery'
+  },
   views: {
     type: Number,
     default: 0

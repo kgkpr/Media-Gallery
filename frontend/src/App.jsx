@@ -52,6 +52,7 @@ function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="gallery" element={<GalleryPage />} />
+                <Route path="gallery/:id" element={<GalleryPage />} />
                 <Route path="galleries" element={<GalleriesPage />} />
                 <Route path="upload" element={<UploadPage />} />
                 <Route path="media/:id" element={<MediaDetailPage />} />

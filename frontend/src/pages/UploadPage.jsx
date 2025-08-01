@@ -1,14 +1,26 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import axios from 'axios';
-import { FiUpload, FiImage, FiX, FiTag, FiEye } from 'react-icons/fi';
+import { FiUpload, FiImage, FiX, FiTag, FiEye, FiFolder } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const UploadPage = () => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
+
+  // Fetch galleries for dropdown
+  const { data: galleriesData } = useQuery(
+    ['galleries'],
+    async () => {
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      
+      const response = await axios.get('http://localhost:5000/api/galleries', config);
+      return response.data;
+    }
+  );
 
   // Upload mutation
   const uploadMutation = useMutation(
@@ -19,6 +31,9 @@ const UploadPage = () => {
       formData.append('description', fileData.description);
       formData.append('tags', fileData.tags);
       formData.append('isPublic', fileData.isPublic);
+      if (fileData.galleryId) {
+        formData.append('galleryId', fileData.galleryId);
+      }
 
       const token = localStorage.getItem('token');
       const config = {
@@ -35,6 +50,7 @@ const UploadPage = () => {
       onSuccess: () => {
         toast.success('Media uploaded successfully!');
         queryClient.invalidateQueries('media');
+        queryClient.invalidateQueries('galleries');
         setUploadedFiles([]);
       },
       onError: (error) => {
@@ -51,6 +67,7 @@ const UploadPage = () => {
       description: '',
       tags: '',
       isPublic: false,
+      galleryId: '', // Add gallery selection
       preview: URL.createObjectURL(file)
     }));
     setUploadedFiles(prev => [...prev, ...newFiles]);
@@ -103,6 +120,8 @@ const UploadPage = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
+
+  const galleries = galleriesData?.galleries || [];
 
   return (
     <div className="space-y-6">
@@ -222,6 +241,44 @@ const UploadPage = () => {
                         />
                       </div>
 
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Gallery (Optional)
+                        </label>
+                        <div className="relative">
+                          <FiFolder className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <select
+                            value={fileData.galleryId}
+                            onChange={(e) => updateFileData(fileData.id, 'galleryId', e.target.value)}
+                            className="input-field text-sm pl-10"
+                          >
+                            <option value="">Select a gallery (optional)</option>
+                            {galleries.map((gallery) => (
+                              <option key={gallery._id} value={gallery._id}>
+                                {gallery.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Visibility
+                        </label>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={fileData.isPublic}
+                            onChange={(e) => updateFileData(fileData.id, 'isPublic', e.target.checked)}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">
+                            Make this image public
+                          </span>
+                        </div>
+                      </div>
+
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Description
@@ -233,20 +290,6 @@ const UploadPage = () => {
                           rows={2}
                           placeholder="Enter description"
                         />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={fileData.isPublic}
-                            onChange={(e) => updateFileData(fileData.id, 'isPublic', e.target.checked)}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">
-                            Make this image public
-                          </span>
-                        </label>
                       </div>
                     </div>
                   </div>
@@ -264,6 +307,7 @@ const UploadPage = () => {
           <li>• Supported formats: JPG, JPEG, PNG</li>
           <li>• Maximum file size: 5MB per file</li>
           <li>• Add descriptive titles and tags for better organization</li>
+          <li>• Select a gallery to organize your images</li>
           <li>• Public images are visible to all users</li>
         </ul>
       </div>
