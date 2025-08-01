@@ -11,8 +11,8 @@ const {
   updateMessageStatus
 } = require('../controllers/contactController');
 
-// Public routes
-router.post('/', submitMessage);
+// Authenticated routes for message submission
+router.post('/', verifyToken, submitMessage);
 
 // User routes (authenticated)
 router.get('/my-messages', verifyToken, getMyMessages);

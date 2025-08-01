@@ -4,6 +4,7 @@ const Contact = require('../models/Contact');
 const submitMessage = async (req, res) => {
   try {
     const { name, email, message } = req.body;
+    console.log(' Submitting message:', { name, email, userId: req.user?._id });
 
     const contact = new Contact({
       name,
@@ -13,6 +14,7 @@ const submitMessage = async (req, res) => {
     });
 
     await contact.save();
+    console.log(' Message saved with ID:', contact._id, 'for user:', contact.userId);
 
     res.status(201).json({
       message: 'Message submitted successfully',
@@ -34,6 +36,7 @@ const submitMessage = async (req, res) => {
 const getMyMessages = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
+    console.log('Getting messages for user:', req.user._id, 'page:', page, 'limit:', limit);
 
     const messages = await Contact.find({ userId: req.user._id })
       .sort({ createdAt: -1 })

@@ -16,12 +16,28 @@ const ContactPage = () => {
   const [editingMessage, setEditingMessage] = useState(null);
 
   // Fetch user's messages
-  const { data: messages, isLoading } = useQuery('myMessages', async () => {
-    const token = localStorage.getItem('token');
-    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-    const response = await axios.get('http://localhost:5000/api/contact/my-messages', config);
-    return response.data;
-  });
+  const { data: messages, isLoading, error } = useQuery(
+    'myMessages',
+    async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const response = await axios.get('http://localhost:5000/api/contact/my-messages', config);
+      return response.data;
+    },
+    {
+      enabled: !!user, // Only run query if user is authenticated
+      retry: 1,
+      onError: (error) => {
+        console.error('Error fetching messages:', error);
+        if (error.response?.status === 401) {
+          console.log('Authentication error - user may need to log in again');
+        }
+      }
+    }
+  );
 
   // Submit message mutation
   const submitMutation = useMutation(
@@ -191,9 +207,33 @@ const ContactPage = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">My Messages</h2>
           
-          {isLoading ? (
+          {!user ? (
+            <div className="text-center py-8">
+              <FiMessageSquare className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Please log in</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                You need to be logged in to view your messages.
+              </p>
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <div className="text-red-500 mb-2">
+                <FiMessageSquare className="mx-auto h-12 w-12" />
+              </div>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading messages</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {error.response?.data?.message || error.message || 'Failed to load messages'}
+              </p>
+              <button 
+                onClick={() => queryClient.invalidateQueries('myMessages')}
+                className="mt-3 btn-primary text-sm"
+              >
+                Try Again
+              </button>
             </div>
           ) : messages?.messages && messages.messages.length > 0 ? (
             <div className="space-y-4">
@@ -266,6 +306,11 @@ const ContactPage = () => {
               <p className="mt-1 text-sm text-gray-500">
                 Send your first message to get started.
               </p>
+              {/* Debug info */}
+              <div className="mt-4 text-xs text-gray-400">
+                <p>Debug: User: {user ? 'Logged in' : 'Not logged in'}</p>
+                <p>Messages data: {JSON.stringify(messages)}</p>
+              </div>
             </div>
           )}
         </div>
@@ -274,4 +319,4 @@ const ContactPage = () => {
   );
 };
 
-export default ContactPage; 
+export default ContactPage;
