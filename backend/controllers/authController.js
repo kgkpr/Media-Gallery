@@ -15,9 +15,12 @@ const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Check if user already exists
+    // Check if user already exists (including deleted users)
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      if (existingUser.deletedAt) {
+        return res.status(400).json({ message: 'This email was previously used by a deleted account. Please contact an administrator to recover your account.' });
+      }
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
@@ -160,7 +163,7 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, deletedAt: null });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
@@ -213,7 +216,7 @@ const googleLogin = async (req, res) => {
     const payload = ticket.getPayload();
     const { email, name, picture, sub: googleId } = payload;
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email, deletedAt: null });
 
     if (!user) {
       // Create new user
@@ -258,7 +261,7 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, deletedAt: null });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

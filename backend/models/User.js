@@ -50,6 +50,10 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: Date.now
+  },
+  deletedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

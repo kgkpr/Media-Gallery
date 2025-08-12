@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
-import { FiUsers, FiSearch, FiFilter, FiEdit, FiTrash2, FiEye, FiEyeOff, FiX } from 'react-icons/fi';
+import { FiUsers, FiSearch, FiFilter, FiEdit, FiTrash2, FiEye, FiEyeOff, FiX, FiRotateCcw, FiTrash } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const AdminUsersPage = () => {
@@ -11,11 +11,12 @@ const AdminUsersPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', role: 'user' });
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'deleted'
   const queryClient = useQueryClient();
 
-  // Fetch users
-  const { data: usersData, isLoading, error } = useQuery(
-    ['users', searchTerm, roleFilter, statusFilter],
+  // Fetch active users
+  const { data: usersData, isLoading: isLoadingActive, error: activeError } = useQuery(
+    ['users', 'active', searchTerm, roleFilter, statusFilter],
     async () => {
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
@@ -26,10 +27,33 @@ const AdminUsersPage = () => {
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       const response = await axios.get(`http://localhost:5000/api/users/admin/all?${params}`, config);
       return response.data;
+    },
+    {
+      enabled: activeTab === 'active'
     }
   );
 
-  const users = usersData?.users || [];
+  // Fetch deleted users
+  const { data: deletedUsersData, isLoading: isLoadingDeleted, error: deletedError } = useQuery(
+    ['users', 'deleted', searchTerm, roleFilter],
+    async () => {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (roleFilter !== 'all') params.append('role', roleFilter);
+      
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.get(`http://localhost:5000/api/users/admin/deleted?${params}`, config);
+      return response.data;
+    },
+    {
+      enabled: activeTab === 'deleted'
+    }
+  );
+
+  const users = activeTab === 'active' ? (usersData?.users || []) : (deletedUsersData?.users || []);
+  const isLoading = activeTab === 'active' ? isLoadingActive : isLoadingDeleted;
+  const error = activeTab === 'active' ? activeError : deletedError;
 
   // Update user mutation
   const updateUserMutation = useMutation(
@@ -50,7 +74,7 @@ const AdminUsersPage = () => {
     }
   );
 
-  // Delete user mutation
+  // Delete user mutation (soft delete)
   const deleteUserMutation = useMutation(
     async (userId) => {
       const token = localStorage.getItem('token');
@@ -69,13 +93,63 @@ const AdminUsersPage = () => {
     }
   );
 
+  // Recover user mutation
+  const recoverUserMutation = useMutation(
+    async (userId) => {
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/api/users/admin/${userId}/recover`, {}, config);
+      return response.data;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('users');
+        toast.success('User recovered successfully');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to recover user');
+      }
+    }
+  );
+
+  // Permanently delete user mutation
+  const permanentlyDeleteUserMutation = useMutation(
+    async (userId) => {
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.delete(`http://localhost:5000/api/users/admin/${userId}/permanent`, config);
+      return response.data;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('users');
+        toast.success('User permanently deleted successfully');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to permanently delete user');
+      }
+    }
+  );
+
   const handleUpdateUser = (userId, userData) => {
     updateUserMutation.mutate({ userId, userData });
   };
 
   const handleDeleteUser = (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to delete this user? They will be moved to the deleted users section and can be recovered later.')) {
       deleteUserMutation.mutate(userId);
+    }
+  };
+
+  const handleRecoverUser = (userId) => {
+    if (window.confirm('Are you sure you want to recover this user?')) {
+      recoverUserMutation.mutate(userId);
+    }
+  };
+
+  const handlePermanentlyDeleteUser = (userId) => {
+    if (window.confirm('Are you sure you want to permanently delete this user? This action cannot be undone and the user will be completely removed from the system.')) {
+      permanentlyDeleteUserMutation.mutate(userId);
     }
   };
 
@@ -147,6 +221,34 @@ const AdminUsersPage = () => {
         </p>
       </div>
 
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 px-6">
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'active'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Active Users ({usersData?.total || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('deleted')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'deleted'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Deleted Users ({deletedUsersData?.total || 0})
+            </button>
+          </nav>
+        </div>
+      </div>
+
       {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -155,7 +257,7 @@ const AdminUsersPage = () => {
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="text"
-                placeholder="Search users by name or email..."
+                placeholder={`Search ${activeTab === 'active' ? 'active' : 'deleted'} users by name or email...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="input-field pl-10"
@@ -188,18 +290,20 @@ const AdminUsersPage = () => {
                 <option value="admin">Admin</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="input-field"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
+            {activeTab === 'active' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -208,7 +312,7 @@ const AdminUsersPage = () => {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            Users ({users?.length || 0})
+            {activeTab === 'active' ? 'Active' : 'Deleted'} Users ({users?.length || 0})
           </h3>
         </div>
         
@@ -223,11 +327,13 @@ const AdminUsersPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Role
                   </th>
+                  {activeTab === 'active' && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Joined
+                    {activeTab === 'active' ? 'Joined' : 'Deleted'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -259,43 +365,66 @@ const AdminUsersPage = () => {
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        user.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
+                    {activeTab === 'active' && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.isActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(user.createdAt)}
+                      {formatDate(activeTab === 'active' ? user.createdAt : user.deletedAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Edit User"
-                        >
-                          <FiEdit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleUpdateUser(user._id, { 
-                            isActive: !user.isActive 
-                          })}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title={user.isActive ? 'Deactivate' : 'Activate'}
-                        >
-                          {user.isActive ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user._id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                        </button>
+                        {activeTab === 'active' ? (
+                          <>
+                            <button
+                              onClick={() => handleEditUser(user)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Edit User"
+                            >
+                              <FiEdit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleUpdateUser(user._id, { 
+                                isActive: !user.isActive 
+                              })}
+                              className="text-indigo-600 hover:text-indigo-900"
+                              title={user.isActive ? 'Deactivate' : 'Activate'}
+                            >
+                              {user.isActive ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user._id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete User"
+                            >
+                              <FiTrash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleRecoverUser(user._id)}
+                              className="text-green-600 hover:text-green-900"
+                              title="Recover User"
+                            >
+                              <FiRotateCcw className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handlePermanentlyDeleteUser(user._id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Permanently Delete"
+                            >
+                              <FiTrash className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -306,11 +435,15 @@ const AdminUsersPage = () => {
         ) : (
           <div className="text-center py-12">
             <FiUsers className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No {activeTab === 'active' ? 'active' : 'deleted'} users found
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || roleFilter !== 'all' || statusFilter !== 'all' 
+              {searchTerm || roleFilter !== 'all' || (activeTab === 'active' && statusFilter !== 'all')
                 ? 'Try adjusting your search or filters.' 
-                : 'No users have been registered yet.'}
+                : activeTab === 'active' 
+                  ? 'No active users have been registered yet.'
+                  : 'No users have been deleted yet.'}
             </p>
           </div>
         )}

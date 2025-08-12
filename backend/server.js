@@ -127,32 +127,54 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Connect to MongoDB
-console.log('Attempting to connect to MongoDB...');
-console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
-
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-  socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-})
-.then(() => {
-  console.log('✅ Connected to MongoDB Atlas successfully');
-  
-  // Start server
+// Connect to MongoDB with fallback (Atlas -> Local)
+const startServer = () => {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🌐 API Base URL: http://localhost:${PORT}/api`);
   });
-})
-.catch((err) => {
-  console.error('❌ MongoDB connection error:', err.message);
-  console.error('Please check your MongoDB Atlas connection string and network connection');
-  process.exit(1);
-});
+};
+
+const connectToMongo = async () => {
+  console.log('Attempting to connect to MongoDB...');
+  console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+
+  const commonOptions = {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  };
+
+  // Try primary (Atlas) first
+  if (process.env.MONGODB_URI) {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, commonOptions);
+      console.log('✅ Connected to MongoDB Atlas successfully');
+      startServer();
+      return;
+    } catch (err) {
+      console.error('❌ MongoDB Atlas connection error:', err.message);
+      console.error('Falling back to local MongoDB...');
+    }
+  }
+
+  // Fallback to local MongoDB
+  const localUri = process.env.MONGODB_LOCAL_URI || 'mongodb://127.0.0.1:27017/media-gallery';
+  try {
+    await mongoose.connect(localUri, commonOptions);
+    console.log('✅ Connected to local MongoDB successfully');
+    startServer();
+  } catch (err) {
+    console.error('❌ Local MongoDB connection error:', err.message);
+    console.error('Please start a local MongoDB instance or fix your Atlas connection.');
+    process.exit(1);
+  }
+};
+
+connectToMongo();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

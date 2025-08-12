@@ -1,11 +1,11 @@
 const User = require('../models/User');
 
-// Admin: Get all users
+// Admin: Get all users (excluding deleted)
 const getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 20, search, role, isActive } = req.query;
 
-    const query = {};
+    const query = { deletedAt: null }; // Exclude deleted users
 
     // Search filter
     if (search) {
@@ -42,6 +42,47 @@ const getAllUsers = async (req, res) => {
     });
   } catch (error) {
     console.error('Get all users error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin: Get deleted users
+const getDeletedUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, role } = req.query;
+
+    const query = { deletedAt: { $ne: null } }; // Only deleted users
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Role filter
+    if (role) {
+      query.role = role;
+    }
+
+    const users = await User.find(query)
+      .select('-password')
+      .sort({ deletedAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      users,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (error) {
+    console.error('Get deleted users error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -102,8 +143,55 @@ const updateUser = async (req, res) => {
   }
 };
 
-// Admin: Delete user (hard delete)
+// Admin: Delete user (soft delete)
 const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Prevent admin from deleting themselves
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'Cannot delete your own account' });
+    }
+
+    // Soft delete - mark as deleted
+    user.deletedAt = new Date();
+    await user.save();
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin: Recover deleted user
+const recoverUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.deletedAt) {
+      return res.status(400).json({ message: 'User is not deleted' });
+    }
+
+    // Recover user by removing deletedAt
+    user.deletedAt = null;
+    await user.save();
+
+    res.json({ message: 'User recovered successfully' });
+  } catch (error) {
+    console.error('Recover user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin: Permanently delete user (hard delete)
+const permanentlyDeleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -118,9 +206,9 @@ const deleteUser = async (req, res) => {
     // Hard delete - actually remove from database
     await User.findByIdAndDelete(req.params.id);
 
-    res.json({ message: 'User deleted successfully' });
+    res.json({ message: 'User permanently deleted successfully' });
   } catch (error) {
-    console.error('Delete user error:', error);
+    console.error('Permanently delete user error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -254,9 +342,12 @@ const getUserStats = async (req, res) => {
 
 module.exports = {
   getAllUsers,
+  getDeletedUsers,
   getUserById,
   updateUser,
   deleteUser,
+  recoverUser,
+  permanentlyDeleteUser,
   reactivateUser,
   getUserProfile,
   updateUserProfile,

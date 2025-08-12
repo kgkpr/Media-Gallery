@@ -21,6 +21,11 @@ const verifyToken = async (req, res, next) => {
       return res.status(401).json({ message: 'Account is deactivated.' });
     }
 
+    // Block soft-deleted users
+    if (user.deletedAt) {
+      return res.status(401).json({ message: 'Account has been deleted.' });
+    }
+
     req.user = user;
     next();
   } catch (error) {
@@ -65,7 +70,7 @@ const optionalAuth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId).select('-password');
     
-    if (user && user.isActive) {
+    if (user && user.isActive && !user.deletedAt) {
       req.user = user;
     }
     

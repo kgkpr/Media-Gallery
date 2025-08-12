@@ -156,13 +156,31 @@ const getMediaById = async (req, res) => {
       return res.status(404).json({ message: 'Media not found' });
     }
 
-    // Check access permissions - only if user is authenticated
+    // Compute owner id safely whether populated or not
+    const ownerId = media.user && media.user._id
+      ? media.user._id.toString()
+      : (media.user ? media.user.toString() : null);
+
+    // Check access permissions
     if (req.user) {
-      if (!media.isPublic && media.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      const isAdmin = req.user.role === 'admin';
+      const isOwner = ownerId && ownerId === req.user._id.toString();
+
+      // Check if this media belongs to a gallery shared with the user
+      let isSharedWithUser = false;
+      if (media.gallery) {
+        const sharedRecord = await SharedGallery.findOne({
+          gallery: media.gallery,
+          sharedWith: req.user._id
+        });
+        isSharedWithUser = Boolean(sharedRecord);
+      }
+
+      if (!media.isPublic && !isOwner && !isAdmin && !isSharedWithUser) {
         return res.status(403).json({ message: 'Access denied' });
       }
-      
-      // Increment views only for authenticated users
+
+      // Increment views for authenticated users after permission check
       media.views += 1;
       await media.save();
     } else {
