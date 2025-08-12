@@ -293,7 +293,6 @@ const UploadPage = () => {
           <li>• Maximum file size: 5MB per file</li>
           <li>• Add descriptive titles and tags for better organization</li>
           <li>• Select a gallery to organize your images</li>
-          <li>• Public images are visible to all users</li>
         </ul>
       </div>
     </div>

@@ -300,46 +300,6 @@ const ProfilePage = () => {
           </div>
         )}
       </div>
-
-      {/* Account Statistics */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Account Statistics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <FiUser className="h-8 w-8 text-primary-600" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Account Status</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {user?.isActive ? 'Active' : 'Inactive'}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <FiCalendar className="h-8 w-8 text-green-600" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Member Since</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatDate(user?.createdAt)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <FiShield className="h-8 w-8 text-purple-600" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Account Type</p>
-                <p className="text-lg font-semibold text-gray-900 capitalize">
-                  {user?.role}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
