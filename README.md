@@ -120,42 +120,113 @@ The application will be available at:
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:5000
 
-## API Endpoints
+## API Reference
+
+Below is a concise API guide with routes, auth, and sample usage. All endpoints are prefixed with `/api`.
+
+### Conventions
+- Auth: Bearer JWT in `Authorization` header unless noted.
+- Responses: JSON unless downloading files.
+- Pagination: `page`, `limit` query params where applicable.
+
+### Health
+- GET `/api/health` → returns service status
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/verify-email` - Verify email with OTP
-- `POST /api/auth/login` - Login with email/password
-- `POST /api/auth/google-login` - Login with Google OAuth
-- `POST /api/auth/forgot-password` - Send password reset email
-- `POST /api/auth/reset-password` - Reset password
-- `GET /api/auth/me` - Get current user
+- POST `/api/auth/register` → register with email/password
+  - Body: `{ name, email, password }`
+  - Notes: Sends 6-digit OTP to email
+- POST `/api/auth/verify-email` → verify OTP
+  - Body: `{ email, otp }`
+- POST `/api/auth/login` → email/password login
+  - Body: `{ email, password }`
+  - Note: Soft-deleted or deactivated users cannot login
+- POST `/api/auth/google-login` → Google ID token login
+  - Body: `{ token }`
+- POST `/api/auth/forgot-password` → request reset email
+  - Body: `{ email }`
+- POST `/api/auth/reset-password` → reset via token
+  - Body: `{ token, newPassword }`
+- GET `/api/auth/me` → current user (requires auth)
+
+Usage example (login):
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"secret123"}'
+```
 
 ### Media
-- `GET /api/media` - Get all media (with filters)
-- `GET /api/media/:id` - Get single media
-- `POST /api/media/upload` - Upload media
-- `PUT /api/media/:id` - Update media
-- `DELETE /api/media/:id` - Delete media
-- `POST /api/media/download-zip` - Download media as ZIP
-- `GET /api/media/stats` - Get media statistics
+- GET `/api/media` → list media with filters
+  - Query: `search`, `tags`, `userId`, `isPublic`, `page`, `limit`, `sortBy`, `sortOrder`
+  - Unauth users only see public items
+- GET `/api/media/:id` → media details
+  - Access rules: owner, admin, shared-gallery member, or public
+  - Side-effect: increments `views` for authenticated users
+- GET `/api/media/gallery/:galleryId` → list media in a gallery
+  - Access: gallery owner, admin, shared with requester, or public gallery
+- POST `/api/media/upload` → upload single file
+  - Multipart field: `media`; optional body: `title, description, tags, isPublic, gallery`
+- PUT `/api/media/:id` → update media (owner/admin)
+- DELETE `/api/media/:id` → delete media (owner/admin)
+- POST `/api/media/download-zip` → download selected media as ZIP
+  - Body: `{ mediaIds: ["<id>", ...] }`
+- GET `/api/media/stats` → media stats for current user (admin can pass `?userId=`)
+
+Quick list example:
+```bash
+curl "http://localhost:5000/api/media?search=sunset&tags=beach,sky&limit=20"
+```
+
+### Galleries
+- GET `/api/galleries` → list my galleries
+- POST `/api/galleries` → create gallery
+- GET `/api/galleries/:id` → gallery details
+- PUT `/api/galleries/:id` → update gallery
+- DELETE `/api/galleries/:id` → delete gallery
+
+### Shared Galleries
+- POST `/api/galleries/:id/share` → share a gallery
+  - Body: `{ userId }` (recipient)
+- DELETE `/api/galleries/:id/share/:userId` → revoke share
+- GET `/api/media/gallery/:galleryId` → browse shared gallery media (see Media section)
 
 ### Contact
-- `POST /api/contact` - Submit message
-- `GET /api/contact/my-messages` - Get user's messages
-- `PUT /api/contact/:id` - Update message
-- `DELETE /api/contact/:id` - Delete message
-- `GET /api/contact/admin/all` - Get all messages (admin)
-- `DELETE /api/contact/admin/:id` - Delete any message (admin)
+- POST `/api/contact` → create message
+- GET `/api/contact/my-messages` → my messages
+- PUT `/api/contact/:id` → update my message
+- DELETE `/api/contact/:id` → delete my message
+- GET `/api/contact/admin/all` → all messages (admin)
+- DELETE `/api/contact/admin/:id` → delete any message (admin)
 
 ### Users
-- `GET /api/users/profile` - Get user profile
-- `PUT /api/users/profile` - Update user profile
-- `GET /api/users/stats` - Get user statistics
-- `GET /api/users/admin/all` - Get all users (admin)
-- `GET /api/users/admin/:id` - Get user by ID (admin)
-- `PUT /api/users/admin/:id` - Update user (admin)
-- `DELETE /api/users/admin/:id` - Delete user (admin)
+- GET `/api/users/profile` → my profile
+- PUT `/api/users/profile` → update my profile
+- GET `/api/users/stats` → my stats (admin can pass `?userId=`)
+
+Admin routes
+- GET `/api/users/admin/all` → list active users (excludes soft-deleted)
+- GET `/api/users/admin/deleted` → list soft-deleted users
+- GET `/api/users/admin/:id` → get user by id
+- PUT `/api/users/admin/:id` → update user
+- PUT `/api/users/admin/:id/reactivate` → reactivate deactivated user
+- DELETE `/api/users/admin/:id` → soft-delete user (sets `deletedAt`)
+- PUT `/api/users/admin/:id/recover` → recover soft-deleted user
+- DELETE `/api/users/admin/:id/permanent` → permanently delete user
+
+Examples:
+```bash
+# Soft-delete a user
+curl -X DELETE http://localhost:5000/api/users/admin/USER_ID \
+  -H "Authorization: Bearer <JWT>"
+
+# List deleted users
+curl http://localhost:5000/api/users/admin/deleted -H "Authorization: Bearer <JWT>"
+
+# Recover a user
+curl -X PUT http://localhost:5000/api/users/admin/USER_ID/recover \
+  -H "Authorization: Bearer <JWT>"
+```
 
 ## Project Structure
 
@@ -244,6 +315,8 @@ project-root/
 1. Set up environment variables
 2. Install dependencies: `npm install`
 3. Start the server: `npm start`
+
+Note: The server attempts Atlas first (`MONGODB_URI`). If that fails, it falls back to local MongoDB using `MONGODB_LOCAL_URI` or `mongodb://127.0.0.1:27017/media-gallery`.
 
 ### Frontend Deployment
 1. Build the application: `npm run build`
