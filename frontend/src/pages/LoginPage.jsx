@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import config from '../config';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
+  const googleClientId = config.GOOGLE_CLIENT_ID;
 
   const handleChange = (e) => {
     setFormData({
@@ -43,14 +45,27 @@ const LoginPage = () => {
 
   const handleGoogleLogin = async (response) => {
     try {
-      const success = await googleLogin(response.credential);
-      if (success) {
-        navigate('/dashboard');
+      const result = await googleLogin(response.credential);
+      if (result && result.success) {
+        // Redirect admin users to admin dashboard, regular users to dashboard
+        if (result.user && result.user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (error) {
       console.error('Google login error:', error);
     }
   };
+
+  // Make handleGoogleLogin available globally for Google OAuth callback
+  useEffect(() => {
+    window.handleGoogleLogin = handleGoogleLogin;
+    return () => {
+      delete window.handleGoogleLogin;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -167,7 +182,7 @@ const LoginPage = () => {
           <div className="mt-6">
             <div
               id="g_id_onload"
-              data-client_id="your-google-client-id"
+              data-client_id={googleClientId}
               data-callback="handleGoogleLogin"
               data-auto_prompt="false"
             />

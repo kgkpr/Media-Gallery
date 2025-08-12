@@ -87,13 +87,25 @@ const GalleryPage = () => {
       const token = localStorage.getItem('token');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       
-      const params = new URLSearchParams();
-      if (search) params.append('search', search);
-      if (selectedTags.length > 0) params.append('tags', selectedTags.join(','));
-      if (id) params.append('galleryId', id);
+      let response;
       
-      const response = await axios.get(`http://localhost:5000/api/media?${params.toString()}`, config);
-      return response.data;
+      if (id) {
+        // For specific gallery, use the gallery-specific endpoint
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (selectedTags.length > 0) params.append('tags', selectedTags.join(','));
+        
+        response = await axios.get(`http://localhost:5000/api/media/gallery/${id}?${params.toString()}`, config);
+        return response.data;
+      } else {
+        // For "My Images" page, use the general media endpoint
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (selectedTags.length > 0) params.append('tags', selectedTags.join(','));
+        
+        response = await axios.get(`http://localhost:5000/api/media?${params.toString()}`, config);
+        return response.data;
+      }
     }
   );
 

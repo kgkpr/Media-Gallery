@@ -32,7 +32,7 @@ const UploadPage = () => {
       formData.append('tags', fileData.tags);
 
       if (fileData.galleryId) {
-        formData.append('galleryId', fileData.galleryId);
+        formData.append('gallery', fileData.galleryId);
       }
 
       const token = localStorage.getItem('token');

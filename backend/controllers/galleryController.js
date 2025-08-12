@@ -116,7 +116,7 @@ const getGalleryById = async (req, res) => {
     }).populate('sharedBy', 'name email');
 
     // Check access permissions
-    const isOwner = gallery.user._id.toString() === req.user._id.toString();
+    const isOwner = gallery.user && gallery.user._id.toString() === req.user._id.toString();
     const isShared = sharedGallery !== null;
     const isPublic = gallery.isPublic;
     const isAdmin = req.user.role === 'admin';
@@ -124,6 +124,12 @@ const getGalleryById = async (req, res) => {
     if (!isPublic && !isOwner && !isShared && !isAdmin) {
       return res.status(403).json({ message: 'Access denied' });
     }
+
+    // Fetch media/images associated with this gallery
+    const Media = require('../models/Media');
+    const media = await Media.find({ gallery: req.params.id })
+      .sort({ createdAt: -1 }) // Sort by newest first
+      .select('title description tags filename fileUrl fileSize mimeType dimensions views downloads createdAt');
 
     // Add shared information if this is a shared gallery
     if (isShared) {
@@ -133,7 +139,11 @@ const getGalleryById = async (req, res) => {
       gallery.sharedAt = sharedGallery.sharedAt;
     }
 
-    res.json({ gallery });
+    res.json({ 
+      gallery,
+      media: media,
+      mediaCount: media.length
+    });
   } catch (error) {
     console.error('Get gallery by ID error:', error);
     res.status(500).json({ message: 'Server error' });

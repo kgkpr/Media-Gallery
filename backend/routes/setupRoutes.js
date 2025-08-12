@@ -5,8 +5,18 @@ const router = express.Router();
 // Setup admin user - This is a one-time setup endpoint
 router.post('/create-admin', async (req, res) => {
   try {
-    const adminEmail = 'admin@gmail.com';
-    const adminPassword = 'admin123';
+    const adminSecret  = process.env.ADMIN_SECRET;
+
+    // protection to prevent unauthorized access
+    if(req.headers.authorization !== adminSecret){
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const adminEmail = req.body.email;
+    const adminPassword = req.body.password;
 
     // Check if admin already exists
     let adminUser = await User.findOne({ email: adminEmail });

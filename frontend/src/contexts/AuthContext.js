@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       
       toast.success('Google login successful!');
-      return true;
+      return { success: true, user: userData };
     } catch (error) {
       const message = error.response?.data?.message || 'Google login failed';
       toast.error(message);

@@ -5,6 +5,7 @@ const {
   uploadMedia,
   getMedia,
   getMediaById,
+  getMediaByGallery,
   updateMedia,
   deleteMedia,
   downloadMedia,
@@ -17,6 +18,7 @@ router.get('/', optionalAuth, getMedia);
 
 // Protected routes
 router.get('/stats', verifyToken, getMediaStats);
+router.get('/gallery/:galleryId', verifyToken, getMediaByGallery);
 router.post('/upload', verifyToken, uploadMedia);
 router.post('/download-zip', verifyToken, downloadMediaAsZip);
 router.get('/:id', optionalAuth, getMediaById);

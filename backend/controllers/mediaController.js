@@ -1,4 +1,6 @@
 const Media = require('../models/Media');
+const Gallery = require('../models/Gallery');
+const SharedGallery = require('../models/SharedGallery');
 const { upload, validateFile, getImageDimensions, cleanupUploads } = require('../utils/upload');
 const archiver = require('archiver');
 const fs = require('fs');
@@ -22,17 +24,7 @@ const uploadMedia = async (req, res) => {
         return res.status(400).json({ message: errors.join(', ') });
       }
 
-      const { title, description, tags, galleryId } = req.body;
-
-      // Check if user can upload to this gallery (only owners can upload)
-      if (galleryId) {
-        const Gallery = require('../models/Gallery');
-        const gallery = await Gallery.findOne({ _id: galleryId, user: req.user._id });
-        if (!gallery) {
-          cleanupUploads(req.file.path);
-          return res.status(403).json({ message: 'You can only upload to your own galleries' });
-        }
-      }
+      const { title, description, tags, isPublic, gallery } = req.body;
 
       // Get image dimensions
       let dimensions = {};
@@ -53,9 +45,9 @@ const uploadMedia = async (req, res) => {
         fileSize: req.file.size,
         mimeType: req.file.mimetype,
         dimensions,
-
+        isPublic: isPublic === 'true',
         user: req.user._id,
-        gallery: galleryId || null
+        gallery: gallery || null
       });
 
       await media.save();
@@ -71,7 +63,6 @@ const uploadMedia = async (req, res) => {
           fileSize: media.formattedSize,
           dimensions: media.dimensions,
           isPublic: media.isPublic,
-          gallery: media.gallery,
           createdAt: media.createdAt
         }
       });
@@ -91,7 +82,7 @@ const getMedia = async (req, res) => {
       search, 
       tags, 
       userId,
-      galleryId,
+      isPublic,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -115,42 +106,20 @@ const getMedia = async (req, res) => {
       query.tags = { $in: tagArray };
     }
 
-    // Gallery filter
-    if (galleryId) {
-      query.gallery = galleryId;
-    }
-
     // User filter
     if (userId) {
       query.user = userId;
     } else if (req.user && req.user.role !== 'admin') {
-      // If viewing a specific gallery, check if user has access to it (own or shared)
-      if (galleryId) {
-        const SharedGallery = require('../models/SharedGallery');
-        const Gallery = require('../models/Gallery');
-        
-        // Check if it's user's own gallery or a shared gallery
-        const ownGallery = await Gallery.findOne({ _id: galleryId, user: req.user._id });
-        const sharedGallery = await SharedGallery.findOne({ gallery: galleryId, sharedWith: req.user._id });
-        
-        if (ownGallery && !sharedGallery) {
-          // User owns this gallery - show their own media
-          query.user = req.user._id;
-        } else if (sharedGallery && !ownGallery) {
-          // This is a shared gallery - only the receiver should see the images
-          // Don't add user filter, let galleryId filter handle it
-        } else if (!ownGallery && !sharedGallery) {
-          // User doesn't have access to this gallery
-          query._id = null; // This will return no results
-        }
-        // If user has access, the galleryId filter will handle the rest
-      } else {
-        // For "My Images" view (no galleryId), show only user's own media
-        query.user = req.user._id;
-      }
+      // Non-admin users can only see their own media
+      query.user = req.user._id;
     } else if (!req.user) {
-      // Unauthenticated users cannot see any media
-      query._id = null; // This will return no results
+      // Unauthenticated users can only see public media
+      query.isPublic = true;
+    }
+
+    // Public filter
+    if (isPublic !== undefined) {
+      query.isPublic = isPublic === 'true';
     }
 
     const sortOptions = {};
@@ -158,7 +127,6 @@ const getMedia = async (req, res) => {
 
     const media = await Media.find(query)
       .populate('user', 'name email')
-      .populate('gallery', 'name')
       .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit)
@@ -182,45 +150,16 @@ const getMedia = async (req, res) => {
 const getMediaById = async (req, res) => {
   try {
     const media = await Media.findById(req.params.id)
-      .populate('user', 'name email')
-      .populate('gallery', 'name');
+      .populate('user', 'name email');
 
     if (!media) {
       return res.status(404).json({ message: 'Media not found' });
     }
 
-    let isSharedGalleryAccess = false;
-    let canEdit = false;
-
     // Check access permissions - only if user is authenticated
     if (req.user) {
-      const isOwner = media.user._id.toString() === req.user._id.toString();
-      const isAdmin = req.user.role === 'admin';
-      
-      // Check if this media is in a shared gallery
-      if (media.gallery) {
-        const SharedGallery = require('../models/SharedGallery');
-        const sharedGallery = await SharedGallery.findOne({
-          gallery: media.gallery._id,
-          sharedWith: req.user._id
-        });
-        
-        if (sharedGallery) {
-          isSharedGalleryAccess = true;
-          // User is accessing this media through a shared gallery
-          canEdit = false; // No edit permissions for shared gallery access
-        } else if (isOwner || isAdmin) {
-          canEdit = true; // Owner or admin can edit
-        } else if (!media.isPublic) {
-          return res.status(403).json({ message: 'Access denied' });
-        }
-      } else {
-        // Media not in a gallery - check normal permissions
-        if (isOwner || isAdmin) {
-          canEdit = true;
-        } else if (!media.isPublic) {
-          return res.status(403).json({ message: 'Access denied' });
-        }
+      if (!media.isPublic && media.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied' });
       }
       
       // Increment views only for authenticated users
@@ -233,13 +172,7 @@ const getMediaById = async (req, res) => {
       }
     }
 
-    res.json({ 
-      media: {
-        ...media.toObject(),
-        isSharedGalleryAccess,
-        canEdit
-      }
-    });
+    res.json({ media });
   } catch (error) {
     console.error('Get media by ID error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -331,31 +264,13 @@ const deleteMedia = async (req, res) => {
 // Download single media file
 const downloadMedia = async (req, res) => {
   try {
-    const media = await Media.findById(req.params.id)
-      .populate('gallery', 'name');
+    const media = await Media.findById(req.params.id);
     if (!media) {
       return res.status(404).json({ message: 'Media not found' });
     }
 
     // Check access permissions
-    const isOwner = media.user.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === 'admin';
-    let hasAccess = media.isPublic || isOwner || isAdmin;
-
-    // If not owner/admin/public, check if user has access through shared gallery
-    if (!hasAccess && media.gallery) {
-      const SharedGallery = require('../models/SharedGallery');
-      const sharedGallery = await SharedGallery.findOne({
-        gallery: media.gallery._id,
-        sharedWith: req.user._id
-      });
-      
-      if (sharedGallery) {
-        hasAccess = true; // User can download from shared gallery
-      }
-    }
-
-    if (!hasAccess) {
+    if (!media.isPublic && media.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -421,43 +336,126 @@ const downloadMediaAsZip = async (req, res) => {
   }
 };
 
+// Get media by gallery
+const getMediaByGallery = async (req, res) => {
+  try {
+    const { galleryId } = req.params;
+    const { page = 1, limit = 12, sortBy = 'createdAt', sortOrder = 'desc', search, tags } = req.query;
+
+    // Verify gallery exists and user has access
+    const gallery = await Gallery.findById(galleryId);
+    if (!gallery) {
+      return res.status(404).json({ message: 'Gallery not found' });
+    }
+
+    // Check access permissions
+    const isOwner = gallery.user.toString() === req.user._id.toString();
+    const isPublic = gallery.isPublic;
+    const isAdmin = req.user.role === 'admin';
+
+    // Check if this is a shared gallery
+    const sharedGallery = await SharedGallery.findOne({
+      gallery: galleryId,
+      sharedWith: req.user._id
+    });
+    const isShared = sharedGallery !== null;
+
+    if (!isPublic && !isOwner && !isShared && !isAdmin) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Build query for media in this gallery
+    const query = { gallery: galleryId };
+
+    // Search filter
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { title: searchRegex },
+        { description: searchRegex },
+        { tags: searchRegex }
+      ];
+    }
+
+    // Tags filter
+    if (tags) {
+      const tagArray = tags.split(',').map(tag => tag.trim());
+      query.tags = { $in: tagArray };
+    }
+
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    // Get media for this specific gallery with filters
+    const media = await Media.find(query)
+      .populate('user', 'name email')
+      .sort(sortOptions)
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const total = await Media.countDocuments(query);
+
+    res.json({
+      media,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalItems: total,
+        hasNext: parseInt(page) < Math.ceil(total / parseInt(limit)),
+        hasPrev: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    console.error('Get media by gallery error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Get media statistics
 const getMediaStats = async (req, res) => {
   try {
     const userId = req.user.role === 'admin' ? req.query.userId : req.user._id;
-    const Gallery = require('../models/Gallery');
-    const SharedGallery = require('../models/SharedGallery');
 
-    // Get media stats
-    const mediaStats = await Media.aggregate([
+    const stats = await Media.aggregate([
       { $match: { user: userId } },
       {
         $group: {
           _id: null,
           totalMedia: { $sum: 1 },
-          totalSize: { $sum: '$fileSize' }
+          totalSize: { $sum: '$fileSize' },
+          totalViews: { $sum: '$views' },
+          totalDownloads: { $sum: '$downloads' }
         }
       }
     ]);
 
-    // Get gallery counts
-    const totalGalleries = await Gallery.countDocuments({ user: userId });
-    
-    // Get shared galleries count (galleries received by this user from others)
-    const totalSharedGalleries = await SharedGallery.countDocuments({ sharedWith: userId });
+    // Compute gallery-related stats
+    const [totalGalleries, totalSharedGalleries] = await Promise.all([
+      Gallery.countDocuments({ user: userId }),
+      SharedGallery.countDocuments({ sharedWith: userId })
+    ]);
 
     const recentMedia = await Media.find({ user: userId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('title fileUrl createdAt views downloads');
+      .select('title fileUrl createdAt');
+
+    const baseStats = stats[0] || {
+      totalMedia: 0,
+      totalSize: 0,
+      totalViews: 0,
+      totalDownloads: 0
+    };
+
+    // Attach gallery counts expected by the frontend dashboard
+    const responseStats = {
+      ...baseStats,
+      totalGalleries,
+      totalSharedGalleries
+    };
 
     res.json({
-      stats: {
-        totalMedia: mediaStats[0]?.totalMedia || 0,
-        totalSize: mediaStats[0]?.totalSize || 0,
-        totalGalleries,
-        totalSharedGalleries
-      },
+      stats: responseStats,
       recentMedia
     });
   } catch (error) {
@@ -470,6 +468,7 @@ module.exports = {
   uploadMedia,
   getMedia,
   getMediaById,
+  getMediaByGallery,
   updateMedia,
   deleteMedia,
   downloadMedia,

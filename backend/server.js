@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-require('dotenv').config({ path: './config.env' });
+require('dotenv').config({path: './.env'});
 
 const app = express();
 
@@ -21,15 +21,17 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com"],
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://accounts.google.com"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
+      frameSrc: ["'self'", "https://accounts.google.com"],
     },
   },
+  crossOriginEmbedderPolicy: false, // <- disable COEP
+  crossOriginOpenerPolicy: false,   // <- disable COOP
 }));
 
 // Rate limiting
@@ -46,6 +48,13 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Additional headers for Google OAuth compatibility
+app.use((req, res, next) => {
+  res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
