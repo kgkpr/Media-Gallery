@@ -13,8 +13,8 @@ const {
   getMediaStats
 } = require('../controllers/mediaController');
 
-// Public routes (with optional auth)
-router.get('/', optionalAuth, getMedia);
+// Media listing is now protected (requires auth)
+router.get('/', verifyToken, getMedia);
 
 // Protected routes
 router.get('/stats', verifyToken, getMediaStats);

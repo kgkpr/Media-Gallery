@@ -73,54 +73,79 @@ const uploadMedia = async (req, res) => {
   }
 };
 
-// Get all media (with filters)
+// Get all media (with filters). Protected route.
 const getMedia = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 12, 
-      search, 
-      tags, 
+    const {
+      page = 1,
+      limit = 12,
+      search,
+      tags,
       userId,
       isPublic,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
 
-    const query = {};
+    const filters = [];
+
+    // Permission scope
+    if (req.user) {
+      if (req.user.role === 'admin') {
+        // Admin may optionally scope by userId
+        if (userId) {
+          filters.push({ user: userId });
+        }
+      } else {
+        // Non-admin: own media, media in shared galleries, and public media
+        const shared = await SharedGallery.find({ sharedWith: req.user._id })
+          .select('gallery')
+          .lean();
+        const sharedGalleryIds = shared.map(s => s.gallery);
+
+        const permissionCondition = {
+          $or: [
+            { user: req.user._id },
+            { gallery: { $in: sharedGalleryIds } },
+            { isPublic: true }
+          ]
+        };
+        filters.push(permissionCondition);
+
+        // If a userId filter is provided, restrict to own only
+        if (userId && userId.toString() === req.user._id.toString()) {
+          filters.push({ user: req.user._id });
+        }
+      }
+    } else {
+      // Fallback: only public (route is protected, but keep safe default)
+      filters.push({ isPublic: true });
+    }
 
     // Search filter
     if (search) {
-      // Use text search if available, otherwise use regex
       const searchRegex = new RegExp(search, 'i');
-      query.$or = [
-        { title: searchRegex },
-        { description: searchRegex },
-        { tags: searchRegex }
-      ];
+      filters.push({
+        $or: [
+          { title: searchRegex },
+          { description: searchRegex },
+          { tags: searchRegex }
+        ]
+      });
     }
 
     // Tags filter
     if (tags) {
       const tagArray = tags.split(',').map(tag => tag.trim());
-      query.tags = { $in: tagArray };
+      filters.push({ tags: { $in: tagArray } });
     }
 
-    // User filter
-    if (userId) {
-      query.user = userId;
-    } else if (req.user && req.user.role !== 'admin') {
-      // Non-admin users can only see their own media
-      query.user = req.user._id;
-    } else if (!req.user) {
-      // Unauthenticated users can only see public media
-      query.isPublic = true;
-    }
-
-    // Public filter
+    // Explicit public flag filter, intersects with permission scope
     if (isPublic !== undefined) {
-      query.isPublic = isPublic === 'true';
+      filters.push({ isPublic: isPublic === 'true' });
     }
+
+    const query = filters.length > 0 ? { $and: filters } : {};
 
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
@@ -128,16 +153,16 @@ const getMedia = async (req, res) => {
     const media = await Media.find(query)
       .populate('user', 'name email')
       .sort(sortOptions)
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
       .exec();
 
     const total = await Media.countDocuments(query);
 
     res.json({
       media,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.ceil(total / Number(limit)),
+      currentPage: Number(page),
       total
     });
   } catch (error) {
